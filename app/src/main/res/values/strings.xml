@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">萤视Pro</string>
+    <string name="tab_home">首页</string>
+    <string name="tab_messages">消息</string>
+    <string name="tab_profile">我的</string>
+    <string name="login_title">萤视Pro</string>
+    <string name="login_subtitle">智能家居监控</string>
+    <string name="login_account_hint">请输入萤石账号</string>
+    <string name="login_password_hint">请输入密码</string>
+    <string name="login_button">登 录</string>
+    <string name="login_loading">登录中…</string>
+    <string name="device_list_title">我的设备</string>
+    <string name="device_online">在线</string>
+    <string name="device_offline">离线</string>
+    <string name="pull_to_refresh">下拉刷新</string>
+    <string name="live_play_title">实时预览</string>
+    <string name="ptz_up">上</string>
+    <string name="ptz_down">下</string>
+    <string name="ptz_left">左</string>
+    <string name="ptz_right">右</string>
+    <string name="preset_title">预置位</string>
+    <string name="add_preset">添加当前位置</string>
+    <string name="screenshot">截图</string>
+    <string name="mute">静音</string>
+    <string name="unmute">取消静音</string>
+    <string name="empty_messages">暂无消息</string>
+    <string name="empty_messages_desc">报警消息将显示在这里</string>
+    <string name="profile_title">我的</string>
+    <string name="logout">退出登录</string>
+    <string name="logout_confirm">确认退出登录？</string>
+    <string name="confirm">确认</string>
+    <string name="cancel">取消</string>
+    <string name="error_network">网络连接失败，请检查网络</string>
+    <string name="error_unknown">未知错误</string>
+    <string name="retry">重试</string>
+</resources>
