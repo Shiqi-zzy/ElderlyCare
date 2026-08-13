@@ -1,9 +1,15 @@
 package com.elderlycare.app.navigation
 
 import androidx.compose.runtime.*
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.elderlycare.app.data.ezviz.ServiceLocator
+import com.elderlycare.app.ui.ezviz.AlarmListScreen
+import com.elderlycare.app.ui.ezviz.LivePreviewScreen
+import com.elderlycare.app.ui.ezviz.PlaybackScreen
 import com.elderlycare.app.ui.family.AlertCenterScreen
 import com.elderlycare.app.ui.family.AuthorizationManagementScreen
 import com.elderlycare.app.ui.home.ProfileDetailScreen
@@ -126,6 +132,42 @@ fun AppNavGraph() {
 
         composable(Screen.AuthorizationMgmt.route) {
             AuthorizationManagementScreen(onNavigateBack = { navController.popBackStack() })
+        }
+
+        // ===== 家属端 — 萤石 RK3 直播 / 回放 / 告警 =====
+        composable(
+            route = Screen.LivePreview.route,
+            arguments = listOf(navArgument("deviceSerial") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val deviceSerial = backStackEntry.arguments?.getString("deviceSerial") ?: return@composable
+            val bound = ServiceLocator.deviceBindingStore.load()
+            LivePreviewScreen(
+                deviceSerial = deviceSerial,
+                verifyCode = bound?.validateCode ?: "",
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = Screen.Playback.route,
+            arguments = listOf(navArgument("deviceSerial") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val deviceSerial = backStackEntry.arguments?.getString("deviceSerial") ?: return@composable
+            val bound = ServiceLocator.deviceBindingStore.load()
+            PlaybackScreen(
+                deviceSerial = deviceSerial,
+                verifyCode = bound?.validateCode ?: "",
+                onBackClick = { navController.popBackStack() }
+            )
+        }
+
+        composable(Screen.EzvizAlarms.route) {
+            AlarmListScreen(
+                onViewPlayback = { message ->
+                    navController.navigate(Screen.Playback.createRoute(message.deviceSerial))
+                },
+                onBack = { navController.popBackStack() }
+            )
         }
 
         // ===== 医院端详情页 =====

@@ -2,6 +2,7 @@ package com.elderlycare.app.ui.wizard.steps
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -10,14 +11,23 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.elderlycare.app.data.ezviz.NetworkResult
+import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.data.model.ElderlyProfile
 import com.elderlycare.app.data.model.SnInputMode
 import com.elderlycare.app.ui.components.StatusBadge
 import com.elderlycare.app.ui.theme.*
+import kotlinx.coroutines.launch
 
 @Composable
 fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Unit) {
+    val scope = rememberCoroutineScope()
+    var isBinding by remember { mutableStateOf(false) }
+    var bindError by remember { mutableStateOf<String?>(null) }
+
     Column(modifier = Modifier.fillMaxWidth()) {
         // === SN 绑定方式 ===
         SectionTitle("SN 绑定方式（二选一，必填）")
@@ -52,7 +62,7 @@ fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Un
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    StatusBadge(text = "在线", color = StatusGreen)
+                                    StatusBadge(text = "已绑定", color = StatusGreen)
                                 }
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
@@ -63,7 +73,14 @@ fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Un
                             }
                             OutlinedButton(
                                 onClick = {
-                                    onUpdate(profile.copy(deviceSn = "", deviceBound = false))
+                                    ServiceLocator.deviceBindingStore.clear()
+                                    onUpdate(
+                                        profile.copy(
+                                            deviceSn = "",
+                                            deviceValidateCode = "",
+                                            deviceBound = false
+                                        )
+                                    )
                                 },
                                 shape = RoundedCornerShape(16.dp),
                                 colors = ButtonDefaults.outlinedButtonColors(contentColor = Error)
@@ -95,7 +112,7 @@ fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Un
                         SnInputMode.SCAN -> {
                             Button(
                                 onClick = {
-                                    // TODO: 调用相机扫描二维码
+                                    // TODO: 调用相机扫描二维码（需引入 ZXing/MLKit）
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -129,34 +146,94 @@ fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Un
                                 value = profile.deviceSn,
                                 onValueChange = { v ->
                                     val filtered = v.filter { it.isDigit() || it in 'A'..'Z' }
-                                    if (filtered.length <= 16) {
+                                    if (filtered.length <= 20) {
                                         onUpdate(profile.copy(deviceSn = filtered))
                                     }
                                 },
                                 label = { Text("设备 SN 码") },
-                                placeholder = { Text("手动填写设备 16 位序列号") },
+                                placeholder = { Text("填写设备序列号（机身/包装）") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                                 supportingText = {
                                     Text(
-                                        "仅允许数字 + 大写字母，长度 16 位",
+                                        "仅允许数字 + 大写字母",
                                         color = TextHint
                                     )
                                 }
                             )
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            OutlinedTextField(
+                                value = profile.deviceValidateCode,
+                                onValueChange = { v ->
+                                    val filtered = v.uppercase().filter { it in 'A'..'Z' || it in '0'..'9' }.take(6)
+                                    onUpdate(profile.copy(deviceValidateCode = filtered))
+                                },
+                                label = { Text("设备验证码") },
+                                placeholder = { Text("6 位大写字母（设备标签上）") },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Characters,
+                                    keyboardType = KeyboardType.Ascii
+                                ),
+                                supportingText = {
+                                    Text("设备标签上的 6 位验证码", color = TextHint)
+                                }
+                            )
+
+                            if (bindError != null) {
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = bindError!!,
+                                    color = Error,
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            }
+
                             Spacer(modifier = Modifier.height(12.dp))
                             Button(
                                 onClick = {
-                                    if (profile.deviceSn.isNotBlank() && profile.deviceSn.length == 16) {
-                                        onUpdate(profile.copy(deviceBound = true))
+                                    val sn = profile.deviceSn.trim()
+                                    val code = profile.deviceValidateCode.trim()
+                                    scope.launch {
+                                        isBinding = true
+                                        bindError = null
+                                        when (val result = ServiceLocator.repository.addDevice(sn, code)) {
+                                            is NetworkResult.Success -> {
+                                                ServiceLocator.deviceBindingStore.save(sn, code, "RK3 设备")
+                                                onUpdate(
+                                                    profile.copy(
+                                                        deviceSn = sn,
+                                                        deviceValidateCode = code,
+                                                        deviceBound = true
+                                                    )
+                                                )
+                                            }
+                                            is NetworkResult.Error -> {
+                                                bindError = result.message
+                                            }
+                                        }
+                                        isBinding = false
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(24.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                                enabled = profile.deviceSn.length == 16
+                                enabled = profile.deviceSn.length in 6..20 && profile.deviceValidateCode.length == 6 && !isBinding
                             ) {
-                                Text("绑定设备", modifier = Modifier.padding(vertical = 4.dp))
+                                if (isBinding) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(20.dp),
+                                        color = OnPrimary,
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("绑定中…")
+                                } else {
+                                    Text("绑定设备", modifier = Modifier.padding(vertical = 4.dp))
+                                }
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                             TextButton(onClick = {

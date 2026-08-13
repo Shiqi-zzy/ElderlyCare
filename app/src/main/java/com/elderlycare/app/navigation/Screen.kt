@@ -21,6 +21,15 @@ sealed class Screen(val route: String) {
     data object AlertCenter : Screen("alert_center")
     data object AuthorizationMgmt : Screen("authorization_mgmt")
 
+    // 家属端 — 萤石 RK3 设备（直播 / 回放 / 告警）
+    data object LivePreview : Screen("live/{deviceSerial}") {
+        fun createRoute(deviceSerial: String) = "live/$deviceSerial"
+    }
+    data object Playback : Screen("playback/{deviceSerial}") {
+        fun createRoute(deviceSerial: String) = "playback/$deviceSerial"
+    }
+    data object EzvizAlarms : Screen("ezviz_alarms")
+
     // 社区端详情
     data object EmergencyDispatch : Screen("emergency_dispatch")
     data object PatrolDetail : Screen("patrol_detail")

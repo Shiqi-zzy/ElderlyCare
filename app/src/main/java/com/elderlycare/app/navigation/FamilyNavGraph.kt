@@ -9,11 +9,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.ui.calendar.CalendarScreen
-import com.elderlycare.app.ui.family.AlertCenterScreen
+import com.elderlycare.app.ui.ezviz.AlarmListScreen
 import com.elderlycare.app.ui.family.AuthorizationManagementScreen
 import com.elderlycare.app.ui.family.FamilyHomeScreen
-import com.elderlycare.app.ui.messages.MessagesScreen
 import com.elderlycare.app.ui.reports.ReportsScreen
 
 @Composable
@@ -77,9 +77,14 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                             restoreState = true
                         }
                     },
-                    onNavigateToVideo = {},
+                    onNavigateToVideo = {
+                        val serial = ServiceLocator.deviceBindingStore.load()?.deviceSerial
+                        if (serial != null) {
+                            navController.navigate(Screen.LivePreview.createRoute(serial))
+                        }
+                    },
                     onNavigateToAlertCenter = {
-                        navController.navigate(Screen.AlertCenter.route)
+                        navController.navigate(Screen.EzvizAlarms.route)
                     },
                     onNavigateToAuthorizationMgmt = {
                         navController.navigate(Screen.AuthorizationMgmt.route)
@@ -98,7 +103,11 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                 )
             }
             composable("messages") {
-                MessagesScreen()
+                AlarmListScreen(
+                    onViewPlayback = { message ->
+                        navController.navigate(Screen.Playback.createRoute(message.deviceSerial))
+                    }
+                )
             }
         }
     }

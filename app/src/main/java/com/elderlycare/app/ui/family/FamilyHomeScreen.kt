@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.data.model.ElderlyProfile
 import com.elderlycare.app.ui.components.RiskLevel
 import com.elderlycare.app.ui.components.StatusBadge
@@ -35,6 +36,7 @@ fun FamilyHomeScreen(
     onLogout: () -> Unit = {}
 ) {
     val profile = remember { ElderlyProfile(name = "张爷爷", gender = com.elderlycare.app.data.model.Gender.MALE, age = "72", height = "170", weight = "68", bloodPressureHigh = "128", bloodPressureLow = "85") }
+    val boundDevice = remember { ServiceLocator.deviceBindingStore.load() }
 
     Scaffold(
         topBar = {
@@ -52,7 +54,10 @@ fun FamilyHomeScreen(
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // 1. 实时视频
-            VideoPreviewCard(onClick = onNavigateToVideo)
+            VideoPreviewCard(
+                deviceSerial = boundDevice?.deviceSerial,
+                onClick = onNavigateToVideo
+            )
 
             // 2. 老人状态卡片
             ElderlyStatusCard()
@@ -159,18 +164,23 @@ private fun AuthorizationSummaryCard(onClick: () -> Unit) {
 // --- 以下为原 HomeScreen 的卡片（保留不变）---
 
 @Composable
-private fun VideoPreviewCard(onClick: () -> Unit) {
+private fun VideoPreviewCard(deviceSerial: String?, onClick: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Column {
             Box(modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)).background(Brush.verticalGradient(listOf(Color(0xFF3D5A73), Color(0xFF2C3E50)))), contentAlignment = Alignment.Center) {
                 Icon(Icons.Filled.Videocam, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(48.dp))
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("RK3 实时画面", color = Color.White.copy(alpha = 0.7f))
-                Row(modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)) { StatusBadge(text = "在线", color = StatusGreen) }
+                Text(
+                    if (deviceSerial != null) "RK3 实时画面 · $deviceSerial" else "未绑定 RK3 设备",
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+                Row(modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)) {
+                    StatusBadge(text = if (deviceSerial != null) "已绑定" else "未绑定", color = if (deviceSerial != null) StatusGreen else StatusYellow)
+                }
             }
             Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("实时视频", fontWeight = FontWeight.Medium, style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = onClick) { Text("查看实时画面", color = Primary); Icon(Icons.Filled.KeyboardArrowRight, null, tint = Primary, modifier = Modifier.size(18.dp)) }
+                TextButton(onClick = onClick) { Text(if (deviceSerial != null) "查看实时画面" else "请在档案录入中绑定", color = Primary); Icon(Icons.Filled.KeyboardArrowRight, null, tint = Primary, modifier = Modifier.size(18.dp)) }
             }
         }
     }

@@ -65,6 +65,7 @@ data class ElderlyProfile(
     // ⑥ 兴趣爱好 & RK3设备绑定
     val hobbies: List<String> = emptyList(),
     val deviceSn: String = "",
+    val deviceValidateCode: String = "", // 设备验证码（6 位大写字母，真绑定用）
     val deviceBound: Boolean = false,
     val snInputMode: SnInputMode = SnInputMode.SCAN // SN 绑定方式
 )
