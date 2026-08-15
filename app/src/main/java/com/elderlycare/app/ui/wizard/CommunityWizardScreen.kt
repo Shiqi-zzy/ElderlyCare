@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -14,14 +15,24 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.elderlycare.app.ui.components.StepIndicator
 import com.elderlycare.app.ui.theme.*
+
+data class CertInfo(
+    val name: String = "",
+    val idCard: String = "",
+    val phone: String = "",
+    val org: String = ""
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommunityWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
     var currentStep by remember { mutableIntStateOf(1) }
+    var showNotice by remember { mutableStateOf(false) }
+    var certInfo by remember { mutableStateOf(CertInfo()) }
     val scrollState = rememberScrollState()
     val totalSteps = 4
 
@@ -53,7 +64,7 @@ fun CommunityWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {})
                     } else { Spacer(modifier = Modifier.weight(1f)) }
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
-                        onClick = { if (currentStep < totalSteps) currentStep++ else onWizardComplete() },
+                        onClick = { if (currentStep < totalSteps) currentStep++ else showNotice = true },
                         shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = Secondary), modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Filled.ArrowForward, null, modifier = Modifier.size(18.dp))
@@ -68,54 +79,76 @@ fun CommunityWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {})
             StepIndicator(
                 currentStep = currentStep, totalSteps = totalSteps,
                 stepLabels = listOf("1", "2", "3", "4"),
-                stepTexts = listOf("绑定老人", "上传资质", "自动处理", "双重审核")
+                stepTexts = listOf("资质认证", "自动处理", "双重审核", "绑定用户")
             )
             HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
             Column(modifier = Modifier.weight(1f).verticalScroll(scrollState).padding(16.dp)) {
                 AnimatedContent(targetState = currentStep, transitionSpec = { fadeIn() + slideInHorizontally { it / 4 } togetherWith fadeOut() + slideOutHorizontally { -it / 4 } }, label = "communityWizard") { step ->
                     when (step) {
-                        1 -> CommunityStepBinding()
-                        2 -> CommunityStepUpload()
-                        3 -> CommunityStepProcessing()
-                        4 -> CommunityStepReview()
+                        1 -> CommunityStepQual(certInfo) { certInfo = it }
+                        2 -> CommunityStepProcessing()
+                        3 -> CommunityStepReview()
+                        4 -> CommunityStepBinding()
                     }
                 }
             }
         }
     }
-}
 
-@Composable
-fun CommunityStepBinding() {
-    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("步骤 1：绑定辖区老人", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("选择辖区内老人档案，发起机构-老人数据授权绑定申请", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
-            Spacer(modifier = Modifier.height(12.dp))
-            val elders = listOf("张爷爷 (3号楼 · 72岁)", "李奶奶 (5号楼 · 68岁)", "王爷爷 (1号楼 · 75岁)")
-            elders.forEach { name ->
-                Surface(shape = RoundedCornerShape(12.dp), color = SurfaceVariant, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(name, modifier = Modifier.weight(1f))
-                        FilterChip(selected = true, onClick = {}, label = { Text("选择") }, shape = RoundedCornerShape(16.dp))
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text("一位工作人员可绑定多位老人", color = TextHint, style = MaterialTheme.typography.labelMedium)
-        }
+    if (showNotice) {
+        ConsentNotice(
+            onAgree = { showNotice = false; onWizardComplete() },
+            onDismiss = { showNotice = false }
+        )
     }
 }
 
 @Composable
-fun CommunityStepUpload() {
+fun CommunityStepQual(certInfo: CertInfo, onCertChange: (CertInfo) -> Unit) {
     Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("步骤 2：资质证明材料上传", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+            Text("步骤 1：资质认证", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
-            Text("上传资料区分机构类型，仅支持 JPG/PNG/PDF", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            Text("请填写工作人员个人信息并上传资质证明", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = certInfo.name,
+                onValueChange = { onCertChange(certInfo.copy(name = it)) },
+                label = { Text("姓名") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedTextField(
+                value = certInfo.idCard,
+                onValueChange = { onCertChange(certInfo.copy(idCard = it)) },
+                label = { Text("身份证号") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedTextField(
+                value = certInfo.phone,
+                onValueChange = { onCertChange(certInfo.copy(phone = it)) },
+                label = { Text("手机号") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedTextField(
+                value = certInfo.org,
+                onValueChange = { onCertChange(certInfo.copy(org = it)) },
+                label = { Text("所属机构") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("资质材料上传（仅支持 JPG/PNG/PDF）", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(8.dp))
             val docs = listOf("网格员工作证", "社区养老服务授权函", "在职证明")
             docs.forEach { doc ->
                 Surface(shape = RoundedCornerShape(12.dp), color = SurfaceVariant, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -133,7 +166,7 @@ fun CommunityStepUpload() {
 fun CommunityStepProcessing() {
     Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("步骤 3：自动处理（隐私模糊 + 审计日志）", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+            Text("步骤 2：自动处理（隐私模糊 + 审计日志）", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(12.dp))
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             Spacer(modifier = Modifier.height(12.dp))
@@ -150,7 +183,7 @@ fun CommunityStepProcessing() {
 fun CommunityStepReview() {
     Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("步骤 4：双重认证审核", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+            Text("步骤 3：双重认证审核", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(12.dp))
             Surface(shape = RoundedCornerShape(12.dp), color = StatusGreen.copy(alpha = 0.1f), modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -168,7 +201,30 @@ fun CommunityStepReview() {
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
-            Text("审核通过后授予时效型权限（默认1年），到期自动失效。家属可单方面撤销授权。", color = TextHint, style = MaterialTheme.typography.labelMedium)
+            Text("审核通过后授予时效型权限（默认1年），到期自动失效。用户可单方面撤销授权。", color = TextHint, style = MaterialTheme.typography.labelMedium)
+        }
+    }
+}
+
+@Composable
+fun CommunityStepBinding() {
+    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("步骤 4：绑定辖区用户", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("选择辖区内用户档案，发起机构-用户数据授权绑定申请", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(12.dp))
+            val elders = listOf("张** (3号楼 · 72岁)", "李** (5号楼 · 68岁)", "王** (1号楼 · 75岁)")
+            elders.forEach { name ->
+                Surface(shape = RoundedCornerShape(12.dp), color = SurfaceVariant, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(name, modifier = Modifier.weight(1f))
+                        FilterChip(selected = true, onClick = {}, label = { Text("选择") }, shape = RoundedCornerShape(16.dp))
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("一位工作人员可绑定多位用户", color = TextHint, style = MaterialTheme.typography.labelMedium)
         }
     }
 }

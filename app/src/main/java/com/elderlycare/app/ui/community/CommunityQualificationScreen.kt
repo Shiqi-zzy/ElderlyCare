@@ -22,6 +22,15 @@ fun CommunityQualificationScreen() {
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                 Column(modifier = Modifier.padding(16.dp)) {
+                    Text("个人信息", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    InfoRow("姓名", "张**")
+                    InfoRow("身份证号", "110***********1234")
+                    InfoRow("所属机构", "幸福社区养老驿站")
+                }
+            }
+            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("网格员工作证", fontWeight = FontWeight.SemiBold); StatusBadge(text = "已认证", color = StatusGreen) }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text("有效期至 2024-12-31 (剩余148天)", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
@@ -40,5 +49,13 @@ fun CommunityQualificationScreen() {
             Button(onClick = {}, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = Secondary)) { Text("发起新绑定申请") }
             Button(onClick = {}, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = Primary)) { Text("查看绑定历史") }
         }
+    }
+}
+
+@Composable
+private fun InfoRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = TextSecondary, modifier = Modifier.width(72.dp))
+        Text(value, style = MaterialTheme.typography.bodyMedium)
     }
 }

@@ -56,11 +56,20 @@ fun CommunityMainScreen(navController: NavHostController, onLogout: () -> Unit) 
             startDestination = "community_dashboard",
             modifier = Modifier.padding(paddingValues)
         ) {
-            composable("community_dashboard") { CommunityDashboardScreen(onLogout = onLogout) }
-            composable("community_orders") { CommunityWorkOrdersScreen() }
+            composable("community_dashboard") {
+                CommunityDashboardScreen(
+                    onLogout = onLogout,
+                    onUserClick = { userId -> navController.navigate(Screen.UserDetail.createRoute(userId)) }
+                )
+            }
+            composable("community_orders") {
+                CommunityWorkOrdersScreen(
+                    onUserClick = { userId -> navController.navigate(Screen.UserDetail.createRoute(userId)) }
+                )
+            }
             composable("community_roster") {
                 CommunityRosterScreen(
-                    onNavigateToDetail = { navController.navigate(Screen.ProfileDetail.route) }
+                    onNavigateToDetail = { userId -> navController.navigate(Screen.UserDetail.createRoute(userId)) }
                 )
             }
             composable("community_qual") { CommunityQualificationScreen() }

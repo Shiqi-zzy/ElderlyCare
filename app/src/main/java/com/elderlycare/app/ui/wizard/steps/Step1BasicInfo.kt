@@ -28,7 +28,7 @@ fun Step1BasicInfo(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Unit) 
                 OutlinedTextField(
                     value = profile.name,
                     onValueChange = { onUpdate(profile.copy(name = it)) },
-                    label = { Text("名字（必填）") },
+                    label = { Text("姓名（必填）") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -177,8 +177,7 @@ fun Step1BasicInfo(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Unit) 
                     OutlinedTextField(
                         value = profile.temperature,
                         onValueChange = { onUpdate(profile.copy(temperature = it)) },
-                        label = { Text("体温") },
-                        placeholder = { Text("℃") },
+                        label = { Text("体温(℃)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
                         singleLine = true,
@@ -187,8 +186,7 @@ fun Step1BasicInfo(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Unit) 
                     OutlinedTextField(
                         value = profile.pulseRate,
                         onValueChange = { onUpdate(profile.copy(pulseRate = it)) },
-                        label = { Text("脉率") },
-                        placeholder = { Text("次/分") },
+                        label = { Text("脉率(次/分)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f),
                         singleLine = true,
@@ -197,8 +195,7 @@ fun Step1BasicInfo(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Unit) 
                     OutlinedTextField(
                         value = profile.respiration,
                         onValueChange = { onUpdate(profile.copy(respiration = it)) },
-                        label = { Text("呼吸") },
-                        placeholder = { Text("次/分") },
+                        label = { Text("呼吸(次/分)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f),
                         singleLine = true,
@@ -213,8 +210,7 @@ fun Step1BasicInfo(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Unit) 
                     OutlinedTextField(
                         value = profile.bloodPressureHigh,
                         onValueChange = { onUpdate(profile.copy(bloodPressureHigh = it)) },
-                        label = { Text("血压-高压") },
-                        placeholder = { Text("mmHg") },
+                        label = { Text("血压-高压(mmHg)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f),
                         singleLine = true
@@ -228,8 +224,7 @@ fun Step1BasicInfo(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Unit) 
                     OutlinedTextField(
                         value = profile.bloodPressureLow,
                         onValueChange = { onUpdate(profile.copy(bloodPressureLow = it)) },
-                        label = { Text("血压-低压") },
-                        placeholder = { Text("mmHg") },
+                        label = { Text("血压-低压(mmHg)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f),
                         singleLine = true

@@ -171,7 +171,7 @@ fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Un
                                     onUpdate(profile.copy(deviceValidateCode = filtered))
                                 },
                                 label = { Text("设备验证码") },
-                                placeholder = { Text("6 位大写字母（设备标签上）") },
+                                placeholder = { Text("6 位大写字母/数字（设备标签上）") },
                                 modifier = Modifier.fillMaxWidth(),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(
@@ -179,7 +179,7 @@ fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Un
                                     keyboardType = KeyboardType.Ascii
                                 ),
                                 supportingText = {
-                                    Text("设备标签上的 6 位验证码", color = TextHint)
+                                    Text("设备标签上的 6 位大写字母或数字", color = TextHint)
                                 }
                             )
 
@@ -286,7 +286,7 @@ fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Un
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Error)
                 ) {
-                    Text("删除本长者全部档案", modifier = Modifier.padding(vertical = 4.dp))
+                    Text("删除本用户全部档案", modifier = Modifier.padding(vertical = 4.dp))
                 }
             }
         }
@@ -301,7 +301,7 @@ fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Un
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    "1. 长者基础信息、病史、情绪倾向评估数据仅存储于自研后端加密数据库，不传输至萤石云端；萤石平台仅接收设备 AI 输出的情绪分值、活动统计脱敏数值；",
+                    "1. 用户基础信息、病史、情绪倾向评估数据仅存储于自研后端加密数据库，不传输至萤石云端；萤石平台仅接收设备 AI 输出的情绪分值、活动统计脱敏数值；",
                     style = MaterialTheme.typography.labelMedium,
                     color = TextSecondary
                 )
@@ -313,7 +313,7 @@ fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Un
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    "3. 用户随时可撤回授权、删除全部长者档案，删除后 7 日内彻底销毁所有本地、云端数据。",
+                    "3. 用户随时可撤回授权、删除全部用户档案，删除后 7 日内彻底销毁所有本地、云端数据。",
                     style = MaterialTheme.typography.labelMedium,
                     color = TextSecondary
                 )

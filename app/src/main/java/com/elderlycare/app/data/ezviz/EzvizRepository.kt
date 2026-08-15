@@ -93,10 +93,45 @@ class EzvizRepository(
         val token = getOrRefreshToken()
             ?: return NetworkResult.Error(message = "未登录或 Token 已过期，请重试")
 
-        val result = apiCall {
-            api.addDevice(accessToken = token, deviceSerial = deviceSerial, validateCode = validateCode)
+        return try {
+            val response = api.addDevice(
+                accessToken = token,
+                deviceSerial = deviceSerial,
+                validateCode = validateCode
+            )
+            if (!response.isSuccessful) {
+                NetworkResult.Error(
+                    code = response.code().toString(),
+                    message = "HTTP ${response.code()}: ${response.message()}"
+                )
+            } else {
+                val body = response.body()
+                val code = body?.code ?: "-1"
+                val msg = body?.msg?.takeIf { it.isNotBlank() } ?: "未知错误"
+                when {
+                    code == "200" -> NetworkResult.Success(Unit)
+                    // 设备已被自己添加：说明设备已在该账号下，可直接使用，视为绑定成功
+                    isAlreadyAddedBySelf(code, msg) -> NetworkResult.Success(Unit)
+                    else -> NetworkResult.Error(code = code, message = msg)
+                }
+            }
+        } catch (e: java.net.UnknownHostException) {
+            NetworkResult.Error(message = "网络连接失败，请检查网络", throwable = e)
+        } catch (e: java.net.SocketTimeoutException) {
+            NetworkResult.Error(message = "请求超时，请稍后重试", throwable = e)
+        } catch (e: Exception) {
+            Log.e(TAG, "绑定设备异常", e)
+            NetworkResult.Error(message = e.message ?: "绑定失败", throwable = e)
         }
-        return result.map { }
+    }
+
+    /**
+     * 判断是否为「设备已被自己添加」。
+     * 萤石错误码 20013 = 设备已被自己添加；20011 = 设备已被他人添加（后者仍需报错）。
+     */
+    private fun isAlreadyAddedBySelf(code: String, msg: String): Boolean {
+        if (code == "20013") return true
+        return msg.contains("自己添加") || msg.contains("已被自己")
     }
 
     // ==================== 设备列表 ====================

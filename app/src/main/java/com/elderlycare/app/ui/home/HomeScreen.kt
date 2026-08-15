@@ -33,7 +33,7 @@ fun HomeScreen(
     // Mock 数据
     val profile = remember {
         ElderlyProfile(
-            name = "张爷爷", gender = com.elderlycare.app.data.model.Gender.MALE, age = "72",
+            name = "张**", gender = com.elderlycare.app.data.model.Gender.MALE, age = "72",
             height = "170", weight = "68", bloodPressureHigh = "128", bloodPressureLow = "85"
         )
     }
@@ -66,7 +66,7 @@ fun HomeScreen(
             // ① 视频快捷卡片
             VideoPreviewCard(onNavigateToVideo = onNavigateToVideo)
 
-            // ② 老人档案摘要卡片
+            // ② 用户档案摘要卡片
             ProfileSummaryCard(
                 profile = profile,
                 onClick = onNavigateToProfile

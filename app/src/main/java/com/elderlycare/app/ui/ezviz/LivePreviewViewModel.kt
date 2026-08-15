@@ -69,7 +69,7 @@ class LivePreviewViewModel : ViewModel() {
                 is NetworkResult.Success -> {
                     val stream = result.data
                     val url = stream.getPreferredUrl()
-                    if (url != null) {
+                    if (!url.isNullOrBlank()) {
                         currentStream = stream
                         _uiState.update {
                             it.copy(
@@ -81,10 +81,11 @@ class LivePreviewViewModel : ViewModel() {
                         }
                         startAddressRefreshTimer()
                     } else {
+                        Log.w(TAG, "直播地址为空: hls=${stream.hlsUrl}, flv=${stream.flvUrl}, rtmp=${stream.rtmpUrl}")
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                error = "无法获取播放地址，设备可能需要验证码",
+                                error = "无法获取播放地址，设备可能离线、未开启直播或需要验证码",
                                 showCodeInput = true
                             )
                         }
@@ -121,7 +122,7 @@ class LivePreviewViewModel : ViewModel() {
         when (val result = repo.getLiveAddress(state.deviceSerial, code)) {
             is NetworkResult.Success -> {
                 val url = result.data.getPreferredUrl()
-                if (url != null && url != state.streamUrl) {
+                if (!url.isNullOrBlank() && url != state.streamUrl) {
                     currentStream = result.data
                     _uiState.update { it.copy(streamUrl = url, error = null) }
                 }

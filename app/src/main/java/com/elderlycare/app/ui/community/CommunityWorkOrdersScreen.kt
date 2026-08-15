@@ -1,5 +1,6 @@
 package com.elderlycare.app.ui.community
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,7 +18,7 @@ import com.elderlycare.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CommunityWorkOrdersScreen() {
+fun CommunityWorkOrdersScreen(onUserClick: (String) -> Unit = {}) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("待处理", "处理中", "已完成")
 
@@ -31,7 +32,12 @@ fun CommunityWorkOrdersScreen() {
             }
             LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(mockOrders.filter { it.status == tabs[selectedTab] }) { order ->
-                    Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable { onUserClick(order.elderly) },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(order.type, fontWeight = FontWeight.SemiBold); StatusBadge(text = order.priority, color = if (order.priority == "紧急") StatusRed else StatusYellow) }
                             Spacer(modifier = Modifier.height(4.dp))
@@ -56,6 +62,6 @@ private data class OrderInfo(val type: String, val elderly: String, val address:
 private val mockOrders = listOf(
     OrderInfo("跌倒告警上门", "张**", "3号楼", "15:30", "紧急", "待处理"),
     OrderInfo("摄像头故障检修", "李**", "5号楼", "10:00", "普通", "处理中"),
-    OrderInfo("高龄老人巡检", "王**", "1号楼", "14:00", "普通", "待处理"),
+    OrderInfo("高龄用户巡检", "王**", "1号楼", "14:00", "普通", "待处理"),
     OrderInfo("跌倒告警上门", "赵**", "2号楼", "09:15", "紧急", "已完成")
 )

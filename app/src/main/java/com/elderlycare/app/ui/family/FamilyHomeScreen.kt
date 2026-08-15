@@ -35,7 +35,7 @@ fun FamilyHomeScreen(
     onNavigateToAuthorizationMgmt: () -> Unit,
     onLogout: () -> Unit = {}
 ) {
-    val profile = remember { ElderlyProfile(name = "张爷爷", gender = com.elderlycare.app.data.model.Gender.MALE, age = "72", height = "170", weight = "68", bloodPressureHigh = "128", bloodPressureLow = "85") }
+    val profile = remember { ElderlyProfile(name = "张**", gender = com.elderlycare.app.data.model.Gender.MALE, age = "72", height = "170", weight = "68", bloodPressureHigh = "128", bloodPressureLow = "85") }
     val boundDevice = remember { ServiceLocator.deviceBindingStore.load() }
 
     Scaffold(
@@ -59,7 +59,7 @@ fun FamilyHomeScreen(
                 onClick = onNavigateToVideo
             )
 
-            // 2. 老人状态卡片
+            // 2. 用户状态卡片
             ElderlyStatusCard()
 
             // 3. 告警中心摘要
@@ -90,7 +90,7 @@ private fun ElderlyStatusCard() {
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("张爷爷", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+                    Text("张**", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.width(8.dp))
                     StatusBadge(text = "在线", color = StatusGreen)
                 }

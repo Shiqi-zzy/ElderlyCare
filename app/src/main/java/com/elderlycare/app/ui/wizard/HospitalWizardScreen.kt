@@ -4,6 +4,7 @@ import androidx.compose.animation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -14,16 +15,25 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.elderlycare.app.ui.components.StepIndicator
 import com.elderlycare.app.ui.theme.*
+
+data class HospitalCertInfo(
+    val name: String = "",
+    val idCard: String = "",
+    val licenseNo: String = ""
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HospitalWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
     var currentStep by remember { mutableIntStateOf(1) }
+    var showNotice by remember { mutableStateOf(false) }
+    var certInfo by remember { mutableStateOf(HospitalCertInfo()) }
     val scrollState = rememberScrollState()
-    val totalSteps = 4
+    val totalSteps = 3
 
     LaunchedEffect(currentStep) { scrollState.animateScrollTo(0) }
 
@@ -53,7 +63,7 @@ fun HospitalWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) 
                     } else { Spacer(modifier = Modifier.weight(1f)) }
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
-                        onClick = { if (currentStep < totalSteps) currentStep++ else onWizardComplete() },
+                        onClick = { if (currentStep < totalSteps) currentStep++ else showNotice = true },
                         shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = Error), modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Filled.ArrowForward, null, modifier = Modifier.size(18.dp))
@@ -67,32 +77,67 @@ fun HospitalWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) 
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             StepIndicator(
                 currentStep = currentStep, totalSteps = totalSteps,
-                stepLabels = listOf("1", "2", "3", "4"),
-                stepTexts = listOf("医疗资质", "绑定患者", "隐私审查", "卫健委审核")
+                stepLabels = listOf("1", "2", "3"),
+                stepTexts = listOf("医疗资质认证", "卫健委审核", "绑定患者")
             )
             HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
             Column(modifier = Modifier.weight(1f).verticalScroll(scrollState).padding(16.dp)) {
                 AnimatedContent(targetState = currentStep, transitionSpec = { fadeIn() + slideInHorizontally { it / 4 } togetherWith fadeOut() + slideOutHorizontally { -it / 4 } }, label = "hospitalWizard") { step ->
                     when (step) {
-                        1 -> HospitalStepMedicalQual()
-                        2 -> HospitalStepBinding()
-                        3 -> HospitalStepPrivacy()
-                        4 -> HospitalStepReview()
+                        1 -> HospitalStepMedicalQual(certInfo) { certInfo = it }
+                        2 -> HospitalStepReview()
+                        3 -> HospitalStepBinding()
                     }
                 }
             }
         }
     }
+
+    if (showNotice) {
+        ConsentNotice(
+            onAgree = { showNotice = false; onWizardComplete() },
+            onDismiss = { showNotice = false }
+        )
+    }
 }
 
 @Composable
-fun HospitalStepMedicalQual() {
+fun HospitalStepMedicalQual(certInfo: HospitalCertInfo, onCertChange: (HospitalCertInfo) -> Unit) {
     Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("步骤 1：医疗资质上传", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+            Text("步骤 1：医疗资质认证", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
-            Text("仅支持 JPG/PNG/PDF，后端计算文件 MD5 防篡改", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            Text("请填写医护人员个人信息并上传执业资质", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = certInfo.name,
+                onValueChange = { onCertChange(certInfo.copy(name = it)) },
+                label = { Text("姓名") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedTextField(
+                value = certInfo.idCard,
+                onValueChange = { onCertChange(certInfo.copy(idCard = it)) },
+                label = { Text("身份证号") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            OutlinedTextField(
+                value = certInfo.licenseNo,
+                onValueChange = { onCertChange(certInfo.copy(licenseNo = it)) },
+                label = { Text("执业证号") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("资质材料上传（仅支持 JPG/PNG/PDF，后端计算文件 MD5 防篡改）", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.height(8.dp))
             val docs = listOf("医师执业资格证", "科室在岗证明", "急救协作授权函")
             docs.forEach { doc ->
                 Surface(shape = RoundedCornerShape(12.dp), color = SurfaceVariant, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -110,9 +155,9 @@ fun HospitalStepMedicalQual() {
 fun HospitalStepBinding() {
     Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("步骤 2：绑定患者老人", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+            Text("步骤 3：绑定患者", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(8.dp))
-            val patients = listOf("张爷爷 (72岁 · 高血压/高血脂)", "李奶奶 (68岁 · 糖尿病)", "王爷爷 (75岁 · 冠心病)")
+            val patients = listOf("张** (72岁 · 高血压/高血脂)", "李** (68岁 · 糖尿病)", "王** (75岁 · 冠心病)")
             patients.forEach { name ->
                 Surface(shape = RoundedCornerShape(12.dp), color = SurfaceVariant, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -130,28 +175,10 @@ fun HospitalStepBinding() {
 }
 
 @Composable
-fun HospitalStepPrivacy() {
-    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("步骤 3：隐私与数据安全审查", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
-            Spacer(modifier = Modifier.height(12.dp))
-            val items = listOf("医疗数据与安防数据物理隔离", "医护只能读取健康病历，日常监控画面完全隐藏", "医生执业资质线上备案、到期年审冻结业务权限", "全操作审计日志留存，用于核查溯源")
-            items.forEach { item ->
-                Row(modifier = Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = RoundedCornerShape(3.dp), color = StatusGreen, modifier = Modifier.size(6.dp)) {}
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(item, style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-        }
-    }
-}
-
-@Composable
 fun HospitalStepReview() {
     Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text("步骤 4：卫健委审核", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+            Text("步骤 2：卫健委审核", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             Spacer(modifier = Modifier.height(12.dp))
             Surface(shape = RoundedCornerShape(12.dp), color = StatusGreen.copy(alpha = 0.1f), modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {

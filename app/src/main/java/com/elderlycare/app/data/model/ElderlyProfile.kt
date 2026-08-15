@@ -1,7 +1,7 @@
 package com.elderlycare.app.data.model
 
 /**
- * 老人完整档案数据模型 — Wizard 6步共享状态
+ * 用户完整档案数据模型 — Wizard 6步共享状态
  */
 data class ElderlyProfile(
     // ① 基础身份与身体测量

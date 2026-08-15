@@ -131,7 +131,7 @@ fun ReportDetailScreen(
                     Text("系统评估结论", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        "老人近期情绪状态总体稳定，孤独指数处于正常范围。抑郁倾向较上周有轻微上升（+4分），可能与本周社交活动减少有关。活跃度保持良好水平。",
+                        "用户近期情绪状态总体稳定，孤独指数处于正常范围。抑郁倾向较上周有轻微上升（+4分），可能与本周社交活动减少有关。活跃度保持良好水平。",
                         style = MaterialTheme.typography.bodyLarge,
                         color = TextPrimary
                     )

@@ -15,6 +15,7 @@ import com.elderlycare.app.ui.family.AuthorizationManagementScreen
 import com.elderlycare.app.ui.home.ProfileDetailScreen
 import com.elderlycare.app.ui.login.PortalSelectionScreen
 import com.elderlycare.app.ui.reports.ReportDetailScreen
+import com.elderlycare.app.ui.shared.UserDetailScreen
 import com.elderlycare.app.ui.wizard.FamilyWizardScreen
 import com.elderlycare.app.ui.wizard.CommunityWizardScreen
 import com.elderlycare.app.ui.wizard.HospitalWizardScreen
@@ -167,6 +168,18 @@ fun AppNavGraph() {
                     navController.navigate(Screen.Playback.createRoute(message.deviceSerial))
                 },
                 onBack = { navController.popBackStack() }
+            )
+        }
+
+        // ===== 共享用户详情 =====
+        composable(
+            route = Screen.UserDetail.route,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: return@composable
+            UserDetailScreen(
+                userId = userId,
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 

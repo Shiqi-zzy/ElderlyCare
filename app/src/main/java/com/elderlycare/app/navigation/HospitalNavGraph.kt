@@ -51,14 +51,23 @@ fun HospitalMainScreen(navController: NavHostController, onLogout: () -> Unit) {
             startDestination = "hospital_emergency",
             modifier = Modifier.padding(paddingValues)
         ) {
-            composable("hospital_emergency") { HospitalEmergencyPanelScreen(onLogout = onLogout) }
+            composable("hospital_emergency") {
+                HospitalEmergencyPanelScreen(
+                    onLogout = onLogout,
+                    onUserClick = { userId -> navController.navigate(Screen.UserDetail.createRoute(userId)) }
+                )
+            }
             composable("hospital_records") {
                 HospitalHealthRecordsScreen(
-                    onNavigateToDetail = { navController.navigate(Screen.HealthRecordDetail.route) }
+                    onNavigateToDetail = { userId -> navController.navigate(Screen.UserDetail.createRoute(userId)) }
                 )
             }
             composable("hospital_video") { HospitalEmergencyVideoScreen() }
-            composable("hospital_followup") { HospitalFollowUpOrdersScreen() }
+            composable("hospital_followup") {
+                HospitalFollowUpOrdersScreen(
+                    onUserClick = { userId -> navController.navigate(Screen.UserDetail.createRoute(userId)) }
+                )
+            }
             composable("hospital_qual") { HospitalQualificationScreen() }
         }
     }

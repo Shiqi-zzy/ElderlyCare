@@ -186,7 +186,7 @@ fun MessageRow(message: Message) {
 fun getMockMessages(): List<Message> = listOf(
     Message(
         title = "中风险心理预警",
-        content = "老人连续独处超过6小时，语音情绪分析显示低落倾向，建议关注",
+        content = "用户连续独处超过6小时，语音情绪分析显示低落倾向，建议关注",
         time = "今天 15:30",
         category = "高风险",
         level = RiskLevel.RISK
@@ -200,14 +200,14 @@ fun getMockMessages(): List<Message> = listOf(
     ),
     Message(
         title = "日程提醒：社区医院复诊",
-        content = "14:00 社区医院心内科复诊，请确保老人按时前往",
+        content = "14:00 社区医院心内科复诊，请确保用户按时前往",
         time = "今天 07:00",
         category = "日程",
         level = RiskLevel.NORMAL
     ),
     Message(
         title = "上午用药未确认",
-        content = "8:00降压药提醒已下发至RK3，但老人尚未点击「已服药」确认",
+        content = "8:00降压药提醒已下发至RK3，但用户尚未点击「已服药」确认",
         time = "今天 09:30",
         category = "日程",
         level = RiskLevel.ATTENTION
@@ -228,7 +228,7 @@ fun getMockMessages(): List<Message> = listOf(
     ),
     Message(
         title = "正念练习完成",
-        content = "老人已完成19:00的5分钟正念呼吸练习，情绪状态记录为「平静」",
+        content = "用户已完成19:00的5分钟正念呼吸练习，情绪状态记录为「平静」",
         time = "前天 19:05",
         category = "日程",
         level = RiskLevel.NORMAL

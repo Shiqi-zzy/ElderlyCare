@@ -1,5 +1,6 @@
 package com.elderlycare.app.ui.hospital
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,7 +19,7 @@ import com.elderlycare.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HospitalFollowUpOrdersScreen() {
+fun HospitalFollowUpOrdersScreen(onUserClick: (String) -> Unit = {}) {
     var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf("待随访", "已完成", "已逾期")
 
@@ -32,7 +33,12 @@ fun HospitalFollowUpOrdersScreen() {
             }
             LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(mockFollowUps.filter { it.status == tabs[selectedTab] }) { fu ->
-                    Card(shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable { onUserClick(fu.patient.substringBefore(" (")) },
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = Surface),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    ) {
                         Column(modifier = Modifier.padding(14.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(fu.type, fontWeight = FontWeight.SemiBold); StatusBadge(text = fu.status, color = if (fu.status == "已逾期") StatusRed else if (fu.status == "待随访") StatusYellow else StatusGreen) }
                             Spacer(modifier = Modifier.height(4.dp))

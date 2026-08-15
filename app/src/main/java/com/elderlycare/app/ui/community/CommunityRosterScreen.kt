@@ -1,5 +1,6 @@
 package com.elderlycare.app.ui.community
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,10 +16,10 @@ import com.elderlycare.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CommunityRosterScreen(onNavigateToDetail: () -> Unit) {
+fun CommunityRosterScreen(onNavigateToDetail: (String) -> Unit) {
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("老人台账", fontWeight = FontWeight.SemiBold) }, colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface))
+            TopAppBar(title = { Text("用户台账", fontWeight = FontWeight.SemiBold) }, colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface))
         }
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
@@ -27,7 +28,7 @@ fun CommunityRosterScreen(onNavigateToDetail: () -> Unit) {
             }
             LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(mockElderly) { elder ->
-                    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+                    Card(modifier = Modifier.fillMaxWidth().clickable { onNavigateToDetail(elder.name) }, shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                         Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) { Text(elder.name, fontWeight = FontWeight.SemiBold); Spacer(modifier = Modifier.width(8.dp)); StatusBadge(text = elder.cameraStatus, color = if (elder.cameraStatus == "在线") StatusGreen else StatusYellow) }
@@ -36,7 +37,7 @@ fun CommunityRosterScreen(onNavigateToDetail: () -> Unit) {
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text("上次巡访: ${elder.lastPatrol}", style = MaterialTheme.typography.labelSmall, color = TextHint)
                             }
-                            TextButton(onClick = onNavigateToDetail) { Text("查看档案", color = Primary) }
+                            TextButton(onClick = { onNavigateToDetail(elder.name) }) { Text("查看档案", color = Primary) }
                         }
                     }
                 }

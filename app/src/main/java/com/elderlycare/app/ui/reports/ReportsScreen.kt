@@ -103,7 +103,7 @@ fun ReportsScreen(
                             date = "7月8日 15:30",
                             level = RiskLevel.RISK,
                             title = "连续独处超过6小时",
-                            description = "老人在客厅区域连续独处6小时，语音情绪分析显示低落倾向",
+                            description = "用户在客厅区域连续独处6小时，语音情绪分析显示低落倾向",
                             onClick = onNavigateToDetail
                         )
                     }

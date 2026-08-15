@@ -25,6 +25,7 @@ import com.elderlycare.app.ui.wizard.steps.*
 fun FamilyWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
     var currentStep by remember { mutableIntStateOf(1) }
     var profile by remember { mutableStateOf(ElderlyProfile()) }
+    var showNotice by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     LaunchedEffect(currentStep) { scrollState.animateScrollTo(0) }
@@ -57,7 +58,7 @@ fun FamilyWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
                     } else { Spacer(modifier = Modifier.weight(1f)) }
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
-                        onClick = { if (currentStep < 6) currentStep++ else onWizardComplete() },
+                        onClick = { if (currentStep < 6) currentStep++ else showNotice = true },
                         shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = Primary), modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Filled.ArrowForward, null, modifier = Modifier.size(18.dp))
@@ -84,5 +85,12 @@ fun FamilyWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
                 }
             }
         }
+    }
+
+    if (showNotice) {
+        ConsentNotice(
+            onAgree = { showNotice = false; onWizardComplete() },
+            onDismiss = { showNotice = false }
+        )
     }
 }

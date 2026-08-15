@@ -19,7 +19,7 @@ import com.elderlycare.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HospitalHealthRecordsScreen(onNavigateToDetail: () -> Unit) {
+fun HospitalHealthRecordsScreen(onNavigateToDetail: (String) -> Unit) {
     Scaffold(
         topBar = { TopAppBar(title = { Text("健康档案", fontWeight = FontWeight.SemiBold) }, colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)) }
     ) { paddingValues ->
@@ -29,7 +29,7 @@ fun HospitalHealthRecordsScreen(onNavigateToDetail: () -> Unit) {
             }
             LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(mockPatients) { patient ->
-                    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onNavigateToDetail), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+                    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = { onNavigateToDetail(patient.name) }), shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
                         Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) { Text(patient.name, fontWeight = FontWeight.SemiBold); Spacer(modifier = Modifier.width(8.dp)); Text("${patient.age}岁 · ${patient.gender}", style = MaterialTheme.typography.bodyMedium, color = TextSecondary) }

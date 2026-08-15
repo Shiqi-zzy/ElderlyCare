@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import com.elderlycare.app.BuildConfig
+import com.elderlycare.app.data.local.SettingsStore
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -23,6 +24,8 @@ object ServiceLocator {
     lateinit var tokenManager: TokenManager
         private set
     lateinit var deviceBindingStore: DeviceBindingStore
+        private set
+    lateinit var settingsStore: SettingsStore
         private set
 
     private var initialized = false
@@ -56,6 +59,7 @@ object ServiceLocator {
         tokenManager = TokenManager(appContext)
         repository = EzvizRepository(api, tokenManager)
         deviceBindingStore = DeviceBindingStore(appContext)
+        settingsStore = SettingsStore(appContext)
 
         initialized = true
         Log.d(TAG, "ServiceLocator 初始化完成")

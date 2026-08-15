@@ -24,7 +24,7 @@ val familyBottomNavItems = listOf(
 val communityBottomNavItems = listOf(
     BottomNavItem("辖区看板", "community_dashboard", Icons.Filled.Dashboard, Icons.Outlined.Dashboard),
     BottomNavItem("工单中心", "community_orders", Icons.Filled.Assignment, Icons.Outlined.Assignment),
-    BottomNavItem("老人台账", "community_roster", Icons.Filled.People, Icons.Outlined.People),
+    BottomNavItem("用户台账", "community_roster", Icons.Filled.People, Icons.Outlined.People),
     BottomNavItem("资质管理", "community_qual", Icons.Filled.VerifiedUser, Icons.Outlined.VerifiedUser),
     BottomNavItem("告警回放", "community_playback", Icons.Filled.Videocam, Icons.Outlined.Videocam)
 )

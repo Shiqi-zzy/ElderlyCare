@@ -44,9 +44,15 @@ data class LiveStream(
     val liveId: String?,
     val expireTime: Long?
 ) {
-    fun getPreferredUrl(): String? = hlsUrl ?: flvUrl ?: rtmpUrl
+    fun getPreferredUrl(): String? =
+        hlsUrl?.takeIf { it.isNotBlank() }
+            ?: flvUrl?.takeIf { it.isNotBlank() }
+            ?: rtmpUrl?.takeIf { it.isNotBlank() }
 
-    fun getHdUrl(): String? = hlsHdUrl ?: flvHdUrl ?: rtmpHdUrl
+    fun getHdUrl(): String? =
+        hlsHdUrl?.takeIf { it.isNotBlank() }
+            ?: flvHdUrl?.takeIf { it.isNotBlank() }
+            ?: rtmpHdUrl?.takeIf { it.isNotBlank() }
 }
 
 /**
