@@ -83,6 +83,12 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                             navController.navigate(Screen.LivePreview.createRoute(serial))
                         }
                     },
+                    onNavigateToEmergencyCall = {
+                        val serial = ServiceLocator.deviceBindingStore.load()?.deviceSerial
+                        if (serial != null) {
+                            navController.navigate(Screen.VideoCall.createRoute(serial))
+                        }
+                    },
                     onNavigateToAlertCenter = {
                         navController.navigate(Screen.EzvizAlarms.route)
                     },

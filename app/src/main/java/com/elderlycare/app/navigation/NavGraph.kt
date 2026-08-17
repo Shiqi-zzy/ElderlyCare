@@ -1,15 +1,20 @@
 package com.elderlycare.app.navigation
 
 import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.elderlycare.app.data.ezviz.RtcSignalingManager
 import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.ui.ezviz.AlarmListScreen
 import com.elderlycare.app.ui.ezviz.LivePreviewScreen
 import com.elderlycare.app.ui.ezviz.PlaybackScreen
+import com.elderlycare.app.ui.ezviz.VideoCallScreen
 import com.elderlycare.app.ui.family.AlertCenterScreen
 import com.elderlycare.app.ui.family.AuthorizationManagementScreen
 import com.elderlycare.app.ui.home.ProfileDetailScreen
@@ -25,6 +30,7 @@ import com.elderlycare.app.ui.hospital.HospitalFollowUpDetailScreen
 @Composable
 fun AppNavGraph() {
     val navController = rememberNavController()
+    val incomingCall by RtcSignalingManager.incomingCall.collectAsState()
 
     NavHost(
         navController = navController,
@@ -171,6 +177,26 @@ fun AppNavGraph() {
             )
         }
 
+        // 云通话（RK3 视频看护）
+        composable(
+            route = Screen.VideoCall.route,
+            arguments = listOf(
+                navArgument("deviceSerial") { type = NavType.StringType },
+                navArgument("roomId") { type = NavType.StringType; defaultValue = "" },
+            )
+        ) { backStackEntry ->
+            val deviceSerial = backStackEntry.arguments?.getString("deviceSerial") ?: return@composable
+            val roomId = backStackEntry.arguments?.getString("roomId").orEmpty()
+            // roomId 为空 → App 主动呼叫设备；不为空 → 设备呼叫 App，加入设备已创建的房间
+            VideoCallScreen(
+                deviceSerial = deviceSerial,
+                account = "family001",
+                roomId = roomId,
+                isClientCall = roomId.isBlank(),
+                onExit = { navController.popBackStack() }
+            )
+        }
+
         // ===== 共享用户详情 =====
         composable(
             route = Screen.UserDetail.route,
@@ -187,5 +213,23 @@ fun AppNavGraph() {
         composable(Screen.HealthRecordDetail.route) {
             HospitalHealthRecordDetailScreen(onNavigateBack = { navController.popBackStack() })
         }
+    }
+
+    // 设备来电弹窗（RK3 主动呼叫家属）
+    incomingCall?.let { call ->
+        AlertDialog(
+            onDismissRequest = { RtcSignalingManager.consume() },
+            title = { Text("来电") },
+            text = { Text("RK3 设备正在呼叫") },
+            confirmButton = {
+                TextButton(onClick = {
+                    RtcSignalingManager.consume()
+                    navController.navigate(Screen.VideoCall.createRoute(call.deviceSerial, call.roomId))
+                }) { Text("接听") }
+            },
+            dismissButton = {
+                TextButton(onClick = { RtcSignalingManager.consume() }) { Text("拒绝") }
+            },
+        )
     }
 }

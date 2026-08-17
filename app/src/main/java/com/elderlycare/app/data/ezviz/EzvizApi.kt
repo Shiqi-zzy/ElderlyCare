@@ -59,18 +59,16 @@ interface EzvizApi {
     @POST("api/lapp/live/address/get")
     suspend fun getLiveAddress(
         @Field("accessToken") accessToken: String,
-        @Field("deviceSerial") deviceSerial: String,
-        @Field("channelNo") channelNo: Int = 1,
+        @Field("source") source: String, // 直播源，格式：设备序列号:通道号
         @Field("protocol") protocol: Int = 2, // 默认 HLS
         @Field("code") code: String? = null
-    ): Response<ApiResponse<LiveAddressDto>>
+    ): Response<ApiResponse<List<LiveAddressDto>>>
 
     @FormUrlEncoded
     @POST("api/lapp/live/video/close")
     suspend fun closeLive(
         @Field("accessToken") accessToken: String,
-        @Field("deviceSerial") deviceSerial: String,
-        @Field("channelNo") channelNo: Int = 1
+        @Field("source") source: String // 直播源，格式：设备序列号:通道号
     ): Response<ApiResponse<Any>>
 
     // ==================== 录像回放 ====================

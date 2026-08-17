@@ -195,32 +195,52 @@ class EzvizRepository(
         val result = apiCall {
             api.getLiveAddress(
                 accessToken = token,
-                deviceSerial = deviceSerial,
-                channelNo = 1,
+                source = "$deviceSerial:1",
                 protocol = 2,
                 code = code
             )
         }
-        return result.map { dto ->
-            LiveStream(
-                deviceSerial = dto.deviceSerial,
-                channelNo = dto.channelNo,
-                hlsUrl = dto.hls,
-                hlsHdUrl = dto.hlsHd,
-                rtmpUrl = dto.rtmp,
-                rtmpHdUrl = dto.rtmpHd,
-                flvUrl = dto.flv,
-                flvHdUrl = dto.flvHd,
-                liveId = dto.liveId,
-                expireTime = dto.expireTime
-            )
+        return when (result) {
+            is NetworkResult.Error -> result
+
+            is NetworkResult.Success -> {
+                // data 是一个数组；优先取第一个带有效播放地址的项
+                val list = result.data
+                val dto = list.firstOrNull { !it.hls.isNullOrBlank() || !it.url.isNullOrBlank() }
+                    ?: list.firstOrNull()
+                    ?: return NetworkResult.Error(message = "直播地址返回为空")
+
+                // 单条地址可能带失败信息（如设备离线 60060=地址未绑定）
+                if (dto.hls.isNullOrBlank() && dto.url.isNullOrBlank()) {
+                    val msg = when (dto.ret) {
+                        "60060" -> "设备不在线，请确认设备已通电并联网"
+                        else -> dto.desc?.takeIf { it.isNotBlank() } ?: "无法获取播放地址，设备可能离线"
+                    }
+                    return NetworkResult.Error(message = msg)
+                }
+
+                NetworkResult.Success(
+                    LiveStream(
+                        deviceSerial = dto.deviceSerial,
+                        channelNo = dto.channelNo,
+                        hlsUrl = dto.hls,
+                        hlsHdUrl = dto.hlsHd,
+                        rtmpUrl = dto.rtmp,
+                        rtmpHdUrl = dto.rtmpHd,
+                        flvUrl = dto.flvAddress,
+                        flvHdUrl = dto.hdFlvAddress,
+                        liveId = dto.liveId,
+                        expireTime = dto.expireTime
+                    )
+                )
+            }
         }
     }
 
     suspend fun closeLive(deviceSerial: String, channelNo: Int = 1): NetworkResult<Unit> {
         val token = getOrRefreshToken() ?: return NetworkResult.Error(message = "未登录")
         val result = apiCall {
-            api.closeLive(accessToken = token, deviceSerial = deviceSerial, channelNo = channelNo)
+            api.closeLive(accessToken = token, source = "$deviceSerial:$channelNo")
         }
         return result.map { }
     }

@@ -70,8 +70,11 @@ data class LiveAddressDto(
     val hlsHd: String? = null,
     val rtmp: String? = null,
     val rtmpHd: String? = null,
-    val flv: String? = null,
-    val flvHd: String? = null,
+    val flvAddress: String? = null,   // 接口实际字段名
+    val hdFlvAddress: String? = null, // 接口实际字段名
+    val url: String? = null,          // protocol=1(ezopen) 时返回
+    val ret: String? = null,          // 单条失败时的错误码，如 60060=地址未绑定
+    val desc: String? = null,         // 单条失败时的错误描述
     val liveId: String? = null,
     val expireTime: Long? = null
 )

@@ -31,6 +31,7 @@ fun FamilyHomeScreen(
     onNavigateToReport: () -> Unit,
     onNavigateToCalendar: () -> Unit,
     onNavigateToVideo: () -> Unit,
+    onNavigateToEmergencyCall: () -> Unit,
     onNavigateToAlertCenter: () -> Unit,
     onNavigateToAuthorizationMgmt: () -> Unit,
     onLogout: () -> Unit = {}
@@ -60,7 +61,7 @@ fun FamilyHomeScreen(
             )
 
             // 2. 用户状态卡片
-            ElderlyStatusCard()
+            ElderlyStatusCard(onEmergencyCall = onNavigateToEmergencyCall)
 
             // 3. 告警中心摘要
             AlertSummaryCard(onClick = onNavigateToAlertCenter)
@@ -81,7 +82,7 @@ fun FamilyHomeScreen(
 }
 
 @Composable
-private fun ElderlyStatusCard() {
+private fun ElderlyStatusCard(onEmergencyCall: () -> Unit) {
     Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = RoundedCornerShape(24.dp), color = Primary.copy(alpha = 0.1f), modifier = Modifier.size(48.dp)) {
@@ -100,7 +101,7 @@ private fun ElderlyStatusCard() {
                     Switch(checked = true, onCheckedChange = {}, modifier = Modifier.height(20.dp))
                 }
             }
-            Button(onClick = {}, shape = RoundedCornerShape(20.dp), colors = ButtonDefaults.buttonColors(containerColor = Error), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
+            Button(onClick = onEmergencyCall, shape = RoundedCornerShape(20.dp), colors = ButtonDefaults.buttonColors(containerColor = Error), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
                 Icon(Icons.Filled.Phone, null, modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("紧急通话", style = MaterialTheme.typography.labelMedium)

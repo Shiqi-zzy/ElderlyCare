@@ -22,6 +22,15 @@ android {
         buildConfigField("String", "EZVIZ_APP_KEY", "\"${project.findProperty("EZVIZ_APP_KEY") ?: ""}\"")
         buildConfigField("String", "EZVIZ_APP_SECRET", "\"${project.findProperty("EZVIZ_APP_SECRET") ?: ""}\"")
         buildConfigField("String", "EZVIZ_BASE_URL", "\"https://open.ys7.com/\"")
+
+        // 云通话(ERTC) 配置
+        buildConfigField("String", "EZVIZ_RTC_APP_ID", "\"1aafc61ecfba4b48b4eccdbe7849e4e8\"")
+        buildConfigField("String", "RTC_BACKEND_URL", "\"${project.findProperty("RTC_BACKEND_URL") ?: "http://10.0.2.2:8000/"}\"")
+
+        // 萤石 SDK 原生库架构
+        ndk {
+            abiFilters += listOf("armeabi-v7a", "arm64-v8a")
+        }
     }
 
     buildTypes {
@@ -86,4 +95,7 @@ dependencies {
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
+
+    // 萤石开放平台 SDK（云通话 ERTC + 直播/回放）
+    implementation(libs.ezviz.sdk)
 }

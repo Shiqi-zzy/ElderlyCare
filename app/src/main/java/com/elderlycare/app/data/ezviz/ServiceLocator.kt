@@ -27,6 +27,8 @@ object ServiceLocator {
         private set
     lateinit var settingsStore: SettingsStore
         private set
+    lateinit var rtcBackendApi: RtcBackendApi
+        private set
 
     private var initialized = false
 
@@ -60,6 +62,14 @@ object ServiceLocator {
         repository = EzvizRepository(api, tokenManager)
         deviceBindingStore = DeviceBindingStore(appContext)
         settingsStore = SettingsStore(appContext)
+
+        // 云通话后端（ElderlyCare/backend）Retrofit 实例
+        val rtcRetrofit = Retrofit.Builder()
+            .baseUrl(BuildConfig.RTC_BACKEND_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        rtcBackendApi = rtcRetrofit.create(RtcBackendApi::class.java)
 
         initialized = true
         Log.d(TAG, "ServiceLocator 初始化完成")

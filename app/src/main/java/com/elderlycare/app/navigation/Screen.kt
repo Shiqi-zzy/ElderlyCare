@@ -30,6 +30,11 @@ sealed class Screen(val route: String) {
     }
     data object EzvizAlarms : Screen("ezviz_alarms")
 
+    // 家属端 — 萤石云通话（RK3 视频看护）
+    data object VideoCall : Screen("video_call/{deviceSerial}?roomId={roomId}") {
+        fun createRoute(deviceSerial: String, roomId: String = "") = "video_call/$deviceSerial?roomId=$roomId"
+    }
+
     // 共享用户详情（社区/医院点击用户）
     data object UserDetail : Screen("user_detail/{userId}") {
         fun createRoute(userId: String) = "user_detail/$userId"
