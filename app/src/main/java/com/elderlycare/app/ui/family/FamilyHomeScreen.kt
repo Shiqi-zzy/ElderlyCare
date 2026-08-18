@@ -33,19 +33,20 @@ fun FamilyHomeScreen(
     onNavigateToVideo: () -> Unit,
     onNavigateToEmergencyCall: () -> Unit,
     onNavigateToAlertCenter: () -> Unit,
-    onNavigateToAuthorizationMgmt: () -> Unit,
-    onLogout: () -> Unit = {}
+    onNavigateToAuthorizationMgmt: () -> Unit
 ) {
-    val profile = remember { ElderlyProfile(name = "张**", gender = com.elderlycare.app.data.model.Gender.MALE, age = "72", height = "170", weight = "68", bloodPressureHigh = "128", bloodPressureLow = "85") }
+    var profile by remember { mutableStateOf<ElderlyProfile?>(null) }
+    LaunchedEffect(Unit) {
+        val uid = ServiceLocator.userStore.getCurrentUserId() ?: ""
+        profile = ServiceLocator.profileStore.getPrimaryProfile(uid)
+    }
+    val currentProfile = profile ?: ElderlyProfile()
     val boundDevice = remember { ServiceLocator.deviceBindingStore.load() }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("${profile.name}的看护助手", fontWeight = FontWeight.SemiBold) },
-                actions = {
-                    IconButton(onClick = onLogout) { Icon(Icons.Filled.Logout, contentDescription = "退出登录") }
-                },
+                title = { Text("${currentProfile.name.ifBlank { "家属" }}的看护助手", fontWeight = FontWeight.SemiBold) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
             )
         }
@@ -61,7 +62,7 @@ fun FamilyHomeScreen(
             )
 
             // 2. 用户状态卡片
-            ElderlyStatusCard(onEmergencyCall = onNavigateToEmergencyCall)
+            ElderlyStatusCard(name = currentProfile.name, onEmergencyCall = onNavigateToEmergencyCall)
 
             // 3. 告警中心摘要
             AlertSummaryCard(onClick = onNavigateToAlertCenter)
@@ -70,7 +71,7 @@ fun FamilyHomeScreen(
             AuthorizationSummaryCard(onClick = onNavigateToAuthorizationMgmt)
 
             // 5. 档案摘要
-            ProfileSummaryCard(profile = profile, onClick = onNavigateToProfile)
+            ProfileSummaryCard(profile = currentProfile, onClick = onNavigateToProfile)
 
             // 6. 情绪倾向报告
             ReportSummaryCard(onClick = onNavigateToReport)
@@ -82,16 +83,16 @@ fun FamilyHomeScreen(
 }
 
 @Composable
-private fun ElderlyStatusCard(onEmergencyCall: () -> Unit) {
+private fun ElderlyStatusCard(name: String, onEmergencyCall: () -> Unit) {
     Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
         Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = RoundedCornerShape(24.dp), color = Primary.copy(alpha = 0.1f), modifier = Modifier.size(48.dp)) {
-                Box(contentAlignment = Alignment.Center) { Text("张", fontWeight = FontWeight.Bold, color = Primary) }
+                Box(contentAlignment = Alignment.Center) { Text(name.take(1).ifBlank { "家" }, fontWeight = FontWeight.Bold, color = Primary) }
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("张**", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+                    Text(name.ifBlank { "家属" }, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.width(8.dp))
                     StatusBadge(text = "在线", color = StatusGreen)
                 }
@@ -191,7 +192,7 @@ private fun VideoPreviewCard(deviceSerial: String?, onClick: () -> Unit) {
 private fun ProfileSummaryCard(profile: ElderlyProfile, onClick: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(24.dp), color = Primary.copy(alpha = 0.1f), modifier = Modifier.size(56.dp)) { Box(contentAlignment = Alignment.Center) { Text("张", fontWeight = FontWeight.Bold, color = Primary, style = MaterialTheme.typography.titleLarge) } }
+            Surface(shape = RoundedCornerShape(24.dp), color = Primary.copy(alpha = 0.1f), modifier = Modifier.size(56.dp)) { Box(contentAlignment = Alignment.Center) { Text(profile.name.take(1).ifBlank { "家" }, fontWeight = FontWeight.Bold, color = Primary, style = MaterialTheme.typography.titleLarge) } }
             Spacer(modifier = Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Row { Text("${profile.name} . ${profile.gender.label} . ${profile.age}岁", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium) }

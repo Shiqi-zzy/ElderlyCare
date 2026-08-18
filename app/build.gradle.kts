@@ -96,6 +96,9 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
+    // DataStore（家属账号/老人档案持久化）
+    implementation(libs.datastore.preferences)
+
     // 萤石开放平台 SDK（云通话 ERTC + 直播/回放）
     implementation(libs.ezviz.sdk)
 }

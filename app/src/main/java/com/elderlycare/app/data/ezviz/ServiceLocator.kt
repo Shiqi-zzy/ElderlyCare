@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import com.elderlycare.app.BuildConfig
+import com.elderlycare.app.data.local.ElderlyProfileStore
+import com.elderlycare.app.data.local.FamilyUserStore
 import com.elderlycare.app.data.local.SettingsStore
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -26,6 +28,10 @@ object ServiceLocator {
     lateinit var deviceBindingStore: DeviceBindingStore
         private set
     lateinit var settingsStore: SettingsStore
+        private set
+    lateinit var userStore: FamilyUserStore
+        private set
+    lateinit var profileStore: ElderlyProfileStore
         private set
     lateinit var rtcBackendApi: RtcBackendApi
         private set
@@ -62,6 +68,8 @@ object ServiceLocator {
         repository = EzvizRepository(api, tokenManager)
         deviceBindingStore = DeviceBindingStore(appContext)
         settingsStore = SettingsStore(appContext)
+        userStore = FamilyUserStore(appContext)
+        profileStore = ElderlyProfileStore(appContext)
 
         // 云通话后端（ElderlyCare/backend）Retrofit 实例
         val rtcRetrofit = Retrofit.Builder()

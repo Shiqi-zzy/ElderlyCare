@@ -13,6 +13,7 @@ media3 = "1.4.1"
 coil = "2.7.0"
 coroutines = "1.8.1"
 ezvizSdk = "5.28.4"
+datastore = "1.1.1"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -46,6 +47,9 @@ coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coi
 
 # Coroutines
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+
+# DataStore (轻量持久化)
+datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
 # 萤石开放平台 SDK（内置 ERTC 实时音视频 + EZOpenSDK）
 ezviz-sdk = { group = "io.github.ezviz-open", name = "ezviz-sdk", version.ref = "ezvizSdk" }

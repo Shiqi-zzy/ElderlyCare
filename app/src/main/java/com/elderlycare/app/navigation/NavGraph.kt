@@ -18,6 +18,7 @@ import com.elderlycare.app.ui.ezviz.VideoCallScreen
 import com.elderlycare.app.ui.family.AlertCenterScreen
 import com.elderlycare.app.ui.family.AuthorizationManagementScreen
 import com.elderlycare.app.ui.home.ProfileDetailScreen
+import com.elderlycare.app.ui.login.FamilyLoginScreen
 import com.elderlycare.app.ui.login.PortalSelectionScreen
 import com.elderlycare.app.ui.reports.ReportDetailScreen
 import com.elderlycare.app.ui.shared.UserDetailScreen
@@ -26,21 +27,30 @@ import com.elderlycare.app.ui.wizard.CommunityWizardScreen
 import com.elderlycare.app.ui.wizard.HospitalWizardScreen
 import com.elderlycare.app.ui.hospital.HospitalHealthRecordDetailScreen
 import com.elderlycare.app.ui.hospital.HospitalFollowUpDetailScreen
+import kotlinx.coroutines.launch
 
 @Composable
 fun AppNavGraph() {
     val navController = rememberNavController()
     val incomingCall by RtcSignalingManager.incomingCall.collectAsState()
 
+    // 启动会话判断：已登录家属直接进首页，否则进门户选择
+    var startDestination by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        startDestination = if (ServiceLocator.userStore.getCurrentUserId() != null)
+            Screen.FamilyMain.route else Screen.PortalSelection.route
+    }
+    val start = startDestination ?: return
+
     NavHost(
         navController = navController,
-        startDestination = Screen.PortalSelection.route
+        startDestination = start
     ) {
         // ===== 门户选择 =====
         composable(Screen.PortalSelection.route) {
             PortalSelectionScreen(
                 onFamilyLogin = {
-                    navController.navigate(Screen.FamilyWizard.route)
+                    navController.navigate(Screen.FamilyLogin.route)
                 },
                 onCommunityLogin = {
                     navController.navigate(Screen.CommunityWizard.route)
@@ -51,12 +61,32 @@ fun AppNavGraph() {
             )
         }
 
-        // ===== 家属端 Wizard =====
-        composable(Screen.FamilyWizard.route) {
-            FamilyWizardScreen(
-                onWizardComplete = {
+        // ===== 家属端登录/注册 =====
+        composable(Screen.FamilyLogin.route) {
+            FamilyLoginScreen(
+                onNavigateToWizard = {
+                    navController.navigate(Screen.FamilyWizard.route)
+                },
+                onNavigateToMain = {
                     navController.navigate(Screen.FamilyMain.route) {
                         popUpTo(Screen.PortalSelection.route) { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // ===== 家属端 Wizard =====
+        composable(Screen.FamilyWizard.route) {
+            val scope = rememberCoroutineScope()
+            FamilyWizardScreen(
+                onWizardComplete = { profile ->
+                    scope.launch {
+                        val uid = ServiceLocator.userStore.getCurrentUserId() ?: ""
+                        ServiceLocator.profileStore.saveProfile(profile.copy(userId = uid))
+                        navController.navigate(Screen.FamilyMain.route) {
+                            popUpTo(Screen.PortalSelection.route) { inclusive = true }
+                        }
                     }
                 },
                 onExit = { navController.popBackStack() }

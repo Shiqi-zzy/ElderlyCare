@@ -14,6 +14,7 @@ import com.elderlycare.app.ui.calendar.CalendarScreen
 import com.elderlycare.app.ui.ezviz.AlarmListScreen
 import com.elderlycare.app.ui.family.AuthorizationManagementScreen
 import com.elderlycare.app.ui.family.FamilyHomeScreen
+import com.elderlycare.app.ui.family.MyScreen
 import com.elderlycare.app.ui.reports.ReportsScreen
 
 @Composable
@@ -94,8 +95,7 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                     },
                     onNavigateToAuthorizationMgmt = {
                         navController.navigate(Screen.AuthorizationMgmt.route)
-                    },
-                    onLogout = onLogout
+                    }
                 )
             }
             composable("calendar") {
@@ -113,6 +113,17 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                     onViewPlayback = { message ->
                         navController.navigate(Screen.Playback.createRoute(message.deviceSerial))
                     }
+                )
+            }
+            composable("my") {
+                MyScreen(
+                    onNavigateToProfile = {
+                        navController.navigate(Screen.ProfileDetail.route)
+                    },
+                    onNavigateToAuthorizationMgmt = {
+                        navController.navigate(Screen.AuthorizationMgmt.route)
+                    },
+                    onLogout = onLogout
                 )
             }
         }

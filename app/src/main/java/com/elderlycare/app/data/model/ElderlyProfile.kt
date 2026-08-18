@@ -4,6 +4,9 @@ package com.elderlycare.app.data.model
  * 用户完整档案数据模型 — Wizard 6步共享状态
  */
 data class ElderlyProfile(
+    // 绑定家属用户（userId = 家属手机号），用于 1:N 关联
+    val userId: String = "",
+
     // ① 基础身份与身体测量
     val name: String = "",
     val gender: Gender = Gender.MALE,

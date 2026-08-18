@@ -22,7 +22,7 @@ import com.elderlycare.app.ui.wizard.steps.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FamilyWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
+fun FamilyWizardScreen(onWizardComplete: (ElderlyProfile) -> Unit, onExit: () -> Unit = {}) {
     var currentStep by remember { mutableIntStateOf(1) }
     var profile by remember { mutableStateOf(ElderlyProfile()) }
     var showNotice by remember { mutableStateOf(false) }
@@ -89,7 +89,7 @@ fun FamilyWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
 
     if (showNotice) {
         ConsentNotice(
-            onAgree = { showNotice = false; onWizardComplete() },
+            onAgree = { showNotice = false; onWizardComplete(profile) },
             onDismiss = { showNotice = false }
         )
     }

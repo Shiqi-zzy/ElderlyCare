@@ -17,7 +17,8 @@ val familyBottomNavItems = listOf(
     BottomNavItem("首页", "home", Icons.Filled.Home, Icons.Outlined.Home),
     BottomNavItem("日程", "calendar", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth),
     BottomNavItem("报告", "reports", Icons.Filled.ShowChart, Icons.Outlined.ShowChart),
-    BottomNavItem("消息", "messages", Icons.Filled.Notifications, Icons.Outlined.Notifications)
+    BottomNavItem("消息", "messages", Icons.Filled.Notifications, Icons.Outlined.Notifications),
+    BottomNavItem("我的", "my", Icons.Filled.Person, Icons.Outlined.Person)
 )
 
 // ===== 社区端底部导航 =====

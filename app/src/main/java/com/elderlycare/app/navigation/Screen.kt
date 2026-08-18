@@ -4,6 +4,9 @@ sealed class Screen(val route: String) {
     // 门户选择
     data object PortalSelection : Screen("portal_selection")
 
+    // 家属端登录/注册
+    data object FamilyLogin : Screen("family_login")
+
     // Wizard
     data object FamilyWizard : Screen("family_wizard")
     data object CommunityWizard : Screen("community_wizard")

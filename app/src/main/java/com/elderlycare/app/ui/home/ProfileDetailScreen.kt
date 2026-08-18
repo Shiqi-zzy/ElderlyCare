@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.elderlycare.app.data.model.*
+import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.ui.components.CollapsibleCard
 import com.elderlycare.app.ui.components.InfoRow
 import com.elderlycare.app.ui.components.StatusBadge
@@ -24,45 +25,13 @@ import com.elderlycare.app.util.BMICalculator
 fun ProfileDetailScreen(
     onNavigateBack: () -> Unit
 ) {
-    // Mock 档案数据
-    val profile = remember {
-        ElderlyProfile(
-            name = "张爷爷", gender = Gender.MALE, age = "72", examDate = "2024-01-15",
-            archiveNumber = "RK3-2024-0001", height = "170", weight = "68", waist = "85",
-            temperature = "36.5", pulseRate = "72", respiration = "18",
-            bloodPressureHigh = "128", bloodPressureLow = "85",
-            phone = "139xxxx1234", emergencyContactName = "张小明", emergencyContactPhone = "138xxxx5678",
-            exerciseFrequency = ExerciseFrequency.EVERYDAY, exerciseDuration = "30", exerciseYears = "5",
-            exerciseTypes = listOf("广场舞", "散步"),
-            dietType = DietType.BALANCED,
-            dietPreferences = listOf("嗜盐", "嗜糖", "三餐规律"),
-            smokingStatus = SmokingStatus.QUIT, dailyCigarettes = "10", smokingStartAge = "25", quitSmokingAge = "65",
-            drinkingFrequency = DrinkingFrequency.OCCASIONALLY, dailyAlcoholAmount = "2", drinkingStartAge = "30",
-            alcoholTypes = listOf("啤酒", "红酒"),
-            currentSymptoms = listOf("头痛", "乏力"),
-            chronicDiseases = listOf("高血压", "高血脂"),
-            allergyHistory = "青霉素过敏",
-            mentalHealthHistory = "轻度焦虑",
-            cognitiveDeclineRecord = "偶尔健忘",
-            healthSelfAssessment = HealthSelfAssessment.BASICALLY_SATISFIED,
-            selfCareLevel = SelfCareLevel.MILD_DEPENDENCE,
-            cognitiveScreening = ScreeningResult.NEGATIVE, cognitiveScore = "26",
-            depressionScreening = ScreeningResult.NEGATIVE, depressionScore = "8",
-            physicalExam = PhysicalExam(
-                consciousness = "正常", skin = "正常", sclera = "正常", lymphNodes = "正常",
-                leftVision = "0.8", rightVision = "0.7", correctedVision = "1.0", fundus = "正常",
-                hearing = "听得见",
-                lipStatus = "正常", missingTeeth = "2", decayedTeeth = "1", dentures = "1", pharynx = "无充血",
-                chestShape = "正常", breathSounds = "清", rales = "无",
-                heartRate = "72", heartRhythm = "齐", heartMurmur = "无",
-                abdominalTenderness = "无", abdominalMass = "无", liverEnlargement = "无",
-                motorFunction = "可独立完成动作"
-            ),
-            hobbies = listOf("戏曲", "广场舞", "养花"),
-            deviceSn = "RK3-2024-A1B2C3", deviceBound = true,
-            privacyConsentGiven = true
-        )
+    // 从本地读取当前用户的真实档案（未录入则空档案兜底）
+    var loadedProfile by remember { mutableStateOf<ElderlyProfile?>(null) }
+    LaunchedEffect(Unit) {
+        val uid = ServiceLocator.userStore.getCurrentUserId() ?: ""
+        loadedProfile = ServiceLocator.profileStore.getPrimaryProfile(uid)
     }
+    val profile = loadedProfile ?: ElderlyProfile()
 
     val h = profile.height.toFloatOrNull() ?: 0f
     val w = profile.weight.toFloatOrNull() ?: 0f
