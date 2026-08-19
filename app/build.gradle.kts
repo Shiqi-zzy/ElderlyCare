@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -99,6 +100,16 @@ dependencies {
     // DataStore（家属账号/老人档案持久化）
     implementation(libs.datastore.preferences)
 
-    // 萤石开放平台 SDK（云通话 ERTC + 直播/回放）
+    // 萤石开放平台 SDK（云通话 ERTC + 直播/回放，已内置 com.ezviz.videotalk / com.ezviz.mediarecoder / libezwatch.so）
     implementation(libs.ezviz.sdk)
+    // 萤石语音对讲 API（com.ezviz.sdk.videotalk.EzvizVoiceCall）。
+    // videotalk AAR 里除了这个新包外，还捆绑了与 ezviz-sdk 完全重复的旧 videotalk/mediarecoder 类与
+    // libezwatch.so，直接引入会触发 checkDebugDuplicateClasses / mergeDebugNativeLibs 失败；
+    // 故此处仅提取其唯一独有的 classes.jar（com.ezviz.sdk.videotalk.*）作为本地 jar 引入。
+    implementation(files("libs/ezviz-videotalk-voice-1.2.1.jar"))
+
+    // Room（留言模块本地存储）
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
 }

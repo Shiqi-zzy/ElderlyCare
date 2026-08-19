@@ -16,13 +16,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.elderlycare.app.R
+import com.elderlycare.app.data.binding.BindingRepository
 import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.data.model.ElderlyProfile
 import com.elderlycare.app.ui.components.RiskLevel
 import com.elderlycare.app.ui.components.StatusBadge
 import com.elderlycare.app.ui.theme.*
+import kotlinx.coroutines.flow.flowOf
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +38,7 @@ fun FamilyHomeScreen(
     onNavigateToVideo: () -> Unit,
     onNavigateToEmergencyCall: () -> Unit,
     onNavigateToAlertCenter: () -> Unit,
+    onNavigateToMessage: () -> Unit,
     onNavigateToAuthorizationMgmt: () -> Unit
 ) {
     var profile by remember { mutableStateOf<ElderlyProfile?>(null) }
@@ -41,7 +47,19 @@ fun FamilyHomeScreen(
         profile = ServiceLocator.profileStore.getPrimaryProfile(uid)
     }
     val currentProfile = profile ?: ElderlyProfile()
-    val boundDevice = remember { ServiceLocator.deviceBindingStore.load() }
+    // 已绑定设备（响应式）：读 BindingRepository 授权链路（档案 deviceSn），不读 DeviceBindingStore 缓存
+    var boundDevice by remember { mutableStateOf<BindingRepository.AccessibleDevice?>(null) }
+    LaunchedEffect(Unit) {
+        ServiceLocator.bindingRepository.observeCurrentUserDevice().collect { boundDevice = it }
+    }
+    val deviceSn = boundDevice?.deviceSn
+
+    // 留言未读数（未绑定设备时恒为 0，隐藏角标）
+    val unreadCount by remember(deviceSn) {
+        deviceSn?.let {
+            ServiceLocator.messageRepository.observeUnreadCount(it)
+        } ?: flowOf(0)
+    }.collectAsStateWithLifecycle(initialValue = 0)
 
     Scaffold(
         topBar = {
@@ -57,7 +75,7 @@ fun FamilyHomeScreen(
         ) {
             // 1. 实时视频
             VideoPreviewCard(
-                deviceSerial = boundDevice?.deviceSerial,
+                deviceSerial = deviceSn,
                 onClick = onNavigateToVideo
             )
 
@@ -67,7 +85,10 @@ fun FamilyHomeScreen(
             // 3. 告警中心摘要
             AlertSummaryCard(onClick = onNavigateToAlertCenter)
 
-            // 4. 机构授权管理摘要
+            // 4. 留言入口（未读角标）
+            MessageSummaryCard(unreadCount = unreadCount, onClick = onNavigateToMessage)
+
+            // 5. 机构授权管理摘要
             AuthorizationSummaryCard(onClick = onNavigateToAuthorizationMgmt)
 
             // 5. 档案摘要
@@ -107,6 +128,35 @@ private fun ElderlyStatusCard(name: String, onEmergencyCall: () -> Unit) {
                 Spacer(modifier = Modifier.width(4.dp))
                 Text("紧急通话", style = MaterialTheme.typography.labelMedium)
             }
+        }
+    }
+}
+
+/** 留言入口卡片（带未读角标，数据来自留言 Room 未读数） */
+@Composable
+private fun MessageSummaryCard(unreadCount: Int, onClick: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = RoundedCornerShape(12.dp), color = Primary.copy(alpha = 0.1f), modifier = Modifier.size(44.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Filled.RecordVoiceOver, null, tint = Primary, modifier = Modifier.size(24.dp))
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.message_title), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+                    if (unreadCount > 0) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(shape = RoundedCornerShape(10.dp), color = StatusRed) {
+                            Text("$unreadCount", color = Color.White, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(stringResource(R.string.message_home_subtitle), style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+            }
+            Icon(Icons.Filled.KeyboardArrowRight, null, tint = TextHint)
         }
     }
 }

@@ -7,6 +7,10 @@ sealed class Screen(val route: String) {
     // 家属端登录/注册
     data object FamilyLogin : Screen("family_login")
 
+    // 社区/医院端登录/注册（统一认证，按角色限定入口）
+    data object CommunityLogin : Screen("community_login")
+    data object HospitalLogin : Screen("hospital_login")
+
     // Wizard
     data object FamilyWizard : Screen("family_wizard")
     data object CommunityWizard : Screen("community_wizard")
@@ -19,10 +23,16 @@ sealed class Screen(val route: String) {
 
     // 家属端详情
     data object ProfileDetail : Screen("profile_detail")
+    data object ProfileEdit : Screen("profile_edit")
     data object ReportDetail : Screen("report_detail")
     data object VideoPlayer : Screen("video_player")
     data object AlertCenter : Screen("alert_center")
     data object AuthorizationMgmt : Screen("authorization_mgmt")
+    // 家属端 — 绑定申请审核（社区/医院发起的绑定申请）
+    data object BindingRequest : Screen("binding_request")
+
+    // 家属端 — 留言（音频收发模块）
+    data object Message : Screen("message")
 
     // 家属端 — 萤石 RK3 设备（直播 / 回放 / 告警）
     data object LivePreview : Screen("live/{deviceSerial}") {
@@ -38,9 +48,9 @@ sealed class Screen(val route: String) {
         fun createRoute(deviceSerial: String, roomId: String = "") = "video_call/$deviceSerial?roomId=$roomId"
     }
 
-    // 共享用户详情（社区/医院点击用户）
-    data object UserDetail : Screen("user_detail/{userId}") {
-        fun createRoute(userId: String) = "user_detail/$userId"
+    // 共享用户详情（社区/医院点击用户；elderlyId = profile.userId，权限由 BindingRepository 校验）
+    data object UserDetail : Screen("user_detail/{elderlyId}") {
+        fun createRoute(elderlyId: String) = "user_detail/$elderlyId"
     }
 
     // 社区端详情

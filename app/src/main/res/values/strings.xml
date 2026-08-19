@@ -1,4 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">萤石养老看护</string>
+
+    <!-- 留言模块 -->
+    <string name="message_title">留言</string>
+    <string name="message_reminder_plan">提醒计划</string>
+    <string name="message_hint_text">支持两种留言方式，应对多种生活场景，设置计划更加灵活</string>
+    <string name="message_empty">暂无留言</string>
+    <string name="message_text_entry">文字留言</string>
+    <string name="message_hold_to_talk">按住留言</string>
+    <string name="message_release_to_send">松开完成录音</string>
+    <string name="message_slide_up_to_cancel">上滑取消</string>
+    <string name="message_record_duration_format">%1$d 秒</string>
+    <string name="message_record_too_short">录音时间太短</string>
+    <string name="message_permission_denied">需要麦克风权限才能录音留言</string>
+    <string name="message_text_input_hint">输入留言内容…</string>
+    <string name="message_text_ai_tag">AI 完成后将自动转为语音</string>
+    <string name="message_text_done">完成</string>
+    <string name="message_text_cancel">取消</string>
+    <string name="message_text_count_format">%1$d/80</string>
+    <string name="message_text_empty_tip">留言内容不能为空</string>
+    <string name="message_delete_confirm">删除这条留言？</string>
+    <string name="message_delete">删除</string>
+    <string name="message_sending">发送中</string>
+    <string name="message_send_success">发送成功</string>
+    <string name="message_send_failed">发送失败</string>
+    <string name="message_send_failed_broadcast_unsupported">设备不支持云广播</string>
+    <string name="message_sender_device">设备</string>
+    <string name="message_sender_me">我</string>
+    <string name="message_type_record">录音留言</string>
+    <string name="message_type_text">文字留言</string>
+    <string name="message_type_device">设备留言</string>
+    <string name="message_channel_talk">微聊</string>
+    <string name="message_channel_broadcast">云广播</string>
+    <string name="message_channel_both">双通道</string>
+    <string name="message_unread_badge">未读留言 %1$d 条</string>
+    <string name="message_entry_label">留言</string>
+    <string name="message_tts_failed">语音合成失败</string>
+    <string name="message_record_failed">录音失败</string>
+    <string name="message_play_failed">播放失败</string>
+    <string name="message_back">返回</string>
+    <string name="message_reminder_plan_todo">提醒计划功能规划中，敬请期待</string>
+    <string name="message_no_device">请先绑定 RK3 设备</string>
+    <string name="message_not_logged_in">未登录或登录已过期</string>
+    <string name="message_send_failed_talk_unsupported">设备不支持语音通话</string>
+    <string name="message_release_to_cancel">松开取消</string>
+    <string name="message_record_cancelled">已取消录音</string>
+    <string name="message_record_max_reached">录音已达 60 秒上限，自动发送</string>
+    <string name="message_record_max_hint">%1$d/60s</string>
+    <string name="message_voice_call_active">语音通话中…</string>
+    <string name="message_end_call">结束通话</string>
+    <string name="message_play">播放</string>
+    <string name="message_pause">暂停</string>
+    <string name="message_home_subtitle">语音留言直达设备，随时提醒老人</string>
+    <string name="message_refresh_failed">同步设备留言失败</string>
+    <string name="message_unread_dot">未读</string>
 </resources>

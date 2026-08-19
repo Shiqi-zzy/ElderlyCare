@@ -21,22 +21,22 @@ val familyBottomNavItems = listOf(
     BottomNavItem("我的", "my", Icons.Filled.Person, Icons.Outlined.Person)
 )
 
-// ===== 社区端底部导航 =====
+// ===== 社区端底部导航（第十阶段：台账与健康档案同源重复，健康档案 tab 调整为告警消息） =====
 val communityBottomNavItems = listOf(
-    BottomNavItem("辖区看板", "community_dashboard", Icons.Filled.Dashboard, Icons.Outlined.Dashboard),
-    BottomNavItem("工单中心", "community_orders", Icons.Filled.Assignment, Icons.Outlined.Assignment),
+    BottomNavItem("工作台", "community_dashboard", Icons.Filled.Dashboard, Icons.Outlined.Dashboard),
     BottomNavItem("用户台账", "community_roster", Icons.Filled.People, Icons.Outlined.People),
-    BottomNavItem("资质管理", "community_qual", Icons.Filled.VerifiedUser, Icons.Outlined.VerifiedUser),
-    BottomNavItem("告警回放", "community_playback", Icons.Filled.Videocam, Icons.Outlined.Videocam)
+    BottomNavItem("告警消息", "community_alarm", Icons.Filled.Notifications, Icons.Outlined.Notifications),
+    BottomNavItem("工作资格", "community_qual", Icons.Filled.VerifiedUser, Icons.Outlined.VerifiedUser),
+    BottomNavItem("我的", "community_my", Icons.Filled.Person, Icons.Outlined.Person)
 )
 
-// ===== 医院端底部导航 =====
+// ===== 医院端底部导航（第十阶段：新增告警消息 tab；资质管理 → 工作资格） =====
 val hospitalBottomNavItems = listOf(
     BottomNavItem("急救大屏", "hospital_emergency", Icons.Filled.LocalHospital, Icons.Outlined.LocalHospital),
     BottomNavItem("健康档案", "hospital_records", Icons.Filled.Folder, Icons.Outlined.Folder),
-    BottomNavItem("应急视频", "hospital_video", Icons.Filled.Videocam, Icons.Outlined.Videocam),
-    BottomNavItem("随访工单", "hospital_followup", Icons.Filled.Assignment, Icons.Outlined.Assignment),
-    BottomNavItem("资质管理", "hospital_qual", Icons.Filled.VerifiedUser, Icons.Outlined.VerifiedUser)
+    BottomNavItem("告警消息", "hospital_alarm", Icons.Filled.Notifications, Icons.Outlined.Notifications),
+    BottomNavItem("工作资格", "hospital_qual", Icons.Filled.VerifiedUser, Icons.Outlined.VerifiedUser),
+    BottomNavItem("我的", "hospital_my", Icons.Filled.Person, Icons.Outlined.Person)
 )
 
 // 向后兼容别名

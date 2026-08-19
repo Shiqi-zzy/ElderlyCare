@@ -61,20 +61,29 @@ data class DeviceCapacityDto(
 )
 
 /**
+ * 设备能力集（api/lapp/device/capacity 返回，字段值为字符串 "0"/"1"/"3"）。
+ * 官方文档：https://open.ys7.com/help/77
+ * 注意：该接口能力字段均为字符串类型，且字段名为下划线风格（如 support_talk），
+ * 与 device/info 里的 capacity 对象不同，故单独建模，用 @SerializedName 精确映射。
+ */
+data class DeviceTalkCapacityDto(
+    @SerializedName("support_talk") val supportTalk: String = "0"
+)
+
+/**
  * 直播地址
  */
 data class LiveAddressDto(
     val deviceSerial: String = "",
     val channelNo: Int = 1,
+    /** v2 接口统一返回的播放地址（protocol=1 时为 ezopen://，其余协议为 http(s) 直链） */
+    val url: String? = null,
     val hls: String? = null,
     val hlsHd: String? = null,
     val rtmp: String? = null,
     val rtmpHd: String? = null,
-    val flvAddress: String? = null,   // 接口实际字段名
-    val hdFlvAddress: String? = null, // 接口实际字段名
-    val url: String? = null,          // protocol=1(ezopen) 时返回
-    val ret: String? = null,          // 单条失败时的错误码，如 60060=地址未绑定
-    val desc: String? = null,         // 单条失败时的错误描述
+    val flv: String? = null,
+    val flvHd: String? = null,
     val liveId: String? = null,
     val expireTime: Long? = null
 )

@@ -45,7 +45,7 @@ fun LivePreviewScreen(
     DisposableEffect(Unit) {
         onDispose {
             viewModel.closeLive()
-            player.release()
+            // player.release() 由 rememberEzvizPlayer 的 DisposableEffect 负责，避免双重释放
         }
     }
 
@@ -138,15 +138,23 @@ fun LivePreviewScreen(
                 }
 
                 uiState.streamUrl != null -> {
-                    EzvizPlayerView(
-                        player = player,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    if (uiState.playerState == PlayerState.Buffering) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center),
-                            color = Primary
+                    if (uiState.useWebView) {
+                        // ezopen 加密流：萤石 JSSDK 网页播放器（与回放页共用）
+                        EzvizWebPlayer(
+                            url = uiState.streamUrl!!,
+                            modifier = Modifier.fillMaxSize()
                         )
+                    } else {
+                        EzvizPlayerView(
+                            player = player,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        if (uiState.playerState == PlayerState.Buffering) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.align(Alignment.Center),
+                                color = Primary
+                            )
+                        }
                     }
                 }
             }

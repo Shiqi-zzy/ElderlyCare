@@ -50,6 +50,8 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
     private val listener = object : RTCListener() {
         override fun onEnterRoomSuccess() {
             Log.d(TAG, "进入房间成功")
+            // 通知 ErtcManager 已在房间（进入中→已进入），防重复进入守卫完成闭环
+            ErtcManager.markRoomEntered()
             _uiState.update { it.copy(state = CallState.ENTERING) }
             // 入会后重新确保本地音视频开启（时序/模拟器防御）
             ErtcManager.enableLocalAudio(!_uiState.value.isMuted)
@@ -95,6 +97,9 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
         this.param = param
         this.isClientCall = clientCallDevice
         _uiState.update { it.copy(state = CallState.INIT) }
+        // 接通超时兜底：从发起到远端入会 15 秒未接通自动结束，避免 INIT/ENTERING 永久卡住
+        // （远端入会时 startTimer 会重启，sec 归零；已接通后 !remoteEntered 恒假，不会误挂断）
+        startTimer()
 
         ErtcManager.init(
             context = getApplication(),
@@ -119,6 +124,8 @@ class VideoCallViewModel(application: Application) : AndroidViewModel(applicatio
     /** 从后端取 clientToken + deviceToken 后发起通话。
      *  [roomId] 为空 → App 主动呼叫设备（后端生成新房间）；非空 → 设备呼叫 App（加入设备已创建的房间）。 */
     fun startCallFromBackend(deviceSerial: String, account: String, customId: String, roomId: String, isClientCall: Boolean) {
+        // 幂等：同一 VM 只启动一次通话（防重复触发进入房间）
+        if (_uiState.value.state != CallState.IDLE) return
         viewModelScope.launch {
             _uiState.update { it.copy(state = CallState.INIT, error = null) }
             try {

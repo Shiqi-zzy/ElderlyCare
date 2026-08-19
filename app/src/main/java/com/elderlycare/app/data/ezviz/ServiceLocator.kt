@@ -4,9 +4,23 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import com.elderlycare.app.BuildConfig
+import com.elderlycare.app.config.EzvizConfig
+import com.elderlycare.app.data.binding.BindingDao
+import com.elderlycare.app.data.binding.BindingDatabase
+import com.elderlycare.app.data.binding.BindingRepository
+import com.elderlycare.app.data.binding.SeedData
 import com.elderlycare.app.data.local.ElderlyProfileStore
 import com.elderlycare.app.data.local.FamilyUserStore
 import com.elderlycare.app.data.local.SettingsStore
+import com.elderlycare.app.data.local.UserStore
+import com.elderlycare.app.data.message.AppDatabase
+import com.elderlycare.app.data.message.MessageRepository
+import com.elderlycare.app.network.ezviz.EZCloudBroadcastManager
+import com.elderlycare.app.network.ezviz.EzvizVoiceApi
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -34,6 +48,30 @@ object ServiceLocator {
     lateinit var profileStore: ElderlyProfileStore
         private set
     lateinit var rtcBackendApi: RtcBackendApi
+        private set
+
+    // ===== 多端绑定关系（第一阶段） =====
+    /** 社区/医院工作人员账号存储（独立 staff_data，与家属 userStore 分离） */
+    lateinit var staffUserStore: UserStore
+        private set
+    /** 多端绑定关系数据库（organization / binding_request / user_elderly_binding / local_alert） */
+    lateinit var bindingDatabase: BindingDatabase
+        private set
+    lateinit var bindingDao: BindingDao
+        private set
+    /** 多端绑定核心业务层（第三阶段：申请/审批/解除） */
+    lateinit var bindingRepository: BindingRepository
+        private set
+
+    /** 后台协程作用域（幂等 seed 等轻量初始化任务） */
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // ===== 留言模块 =====
+    lateinit var sdkManager: EzvizSdkManager
+        private set
+    lateinit var broadcastManager: EZCloudBroadcastManager
+        private set
+    lateinit var messageRepository: MessageRepository
         private set
 
     private var initialized = false
@@ -71,6 +109,14 @@ object ServiceLocator {
         userStore = FamilyUserStore(appContext)
         profileStore = ElderlyProfileStore(appContext)
 
+        // ===== 多端绑定关系（第一阶段） =====
+        staffUserStore = UserStore(appContext)
+        bindingDatabase = BindingDatabase.getInstance(appContext)
+        bindingDao = bindingDatabase.bindingDao()
+        bindingRepository = BindingRepository(staffUserStore, userStore, profileStore, bindingDao)
+        // 幂等预置演示机构与工作人员账号（不阻塞主线程）
+        appScope.launch { SeedData(staffUserStore, bindingDao).ensureSeeded() }
+
         // 云通话后端（ElderlyCare/backend）Retrofit 实例
         val rtcRetrofit = Retrofit.Builder()
             .baseUrl(BuildConfig.RTC_BACKEND_URL)
@@ -78,6 +124,28 @@ object ServiceLocator {
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         rtcBackendApi = rtcRetrofit.create(RtcBackendApi::class.java)
+
+        // ===== 留言模块 =====
+        // 云广播 REST：独立 Retrofit（域名/返回结构均与老接口不同）
+        val broadcastRetrofit = Retrofit.Builder()
+            .baseUrl(EzvizConfig.BROADCAST_BASE_URL)
+            .client(okHttpClient)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        val voiceApi = broadcastRetrofit.create(EzvizVoiceApi::class.java)
+        sdkManager = EzvizSdkManager()
+        broadcastManager = EZCloudBroadcastManager(
+            api = voiceApi,
+            tokenProvider = { repository.obtainValidToken() },
+            talkCapabilityProvider = { repository.getDeviceSupportTalkRaw(it) }
+        )
+        messageRepository = MessageRepository(
+            context = appContext,
+            dao = AppDatabase.getInstance(appContext).messageDao(),
+            sdkManager = sdkManager,
+            broadcastManager = broadcastManager,
+            ezvizRepository = repository
+        )
 
         initialized = true
         Log.d(TAG, "ServiceLocator 初始化完成")

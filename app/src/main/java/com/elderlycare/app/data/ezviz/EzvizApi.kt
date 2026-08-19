@@ -53,22 +53,44 @@ interface EzvizApi {
         @Field("deviceSerial") deviceSerial: String
     ): Response<ApiResponse<DeviceDetailDto>>
 
+    /**
+     * 获取设备能力集（support_talk 等）。
+     * 官方文档：https://open.ys7.com/help/77（返回 data.support_talk 为字符串 "0"/"1"/"3"）
+     */
+    @FormUrlEncoded
+    @POST("api/lapp/device/capacity")
+    suspend fun getDeviceCapacity(
+        @Field("accessToken") accessToken: String,
+        @Field("deviceSerial") deviceSerial: String,
+        @Field("channelNo") channelNo: Int = 1
+    ): Response<ApiResponse<DeviceTalkCapacityDto>>
+
     // ==================== 直播预览 ====================
 
+    /**
+     * 获取直播预览地址（统一播放地址接口 v2）。
+     * 老接口 api/lapp/live/address/get 已被服务端强制要求未公开的 source 参数（报 10001
+     * 「source为空」），故改用官方现行 v2 接口。
+     * protocol 默认 1（ezopen）：返回 ezopen:// 地址，加密设备凭 code 也能取到
+     * （实测 hls/rtmp/flv 对加密设备返回 60019「加密已开启」），需配合萤石 JSSDK WebView 播放。
+     */
     @FormUrlEncoded
-    @POST("api/lapp/live/address/get")
+    @POST("api/lapp/v2/live/address/get")
     suspend fun getLiveAddress(
         @Field("accessToken") accessToken: String,
-        @Field("source") source: String, // 直播源，格式：设备序列号:通道号
-        @Field("protocol") protocol: Int = 2, // 默认 HLS
+        @Field("deviceSerial") deviceSerial: String,
+        @Field("channelNo") channelNo: Int = 1,
+        @Field("type") type: Int = 1, // 1=预览 2=本地录像回放 3=云存储回放
+        @Field("protocol") protocol: Int = 1, // 1=ezopen 2=hls 3=rtmp 4=flv
         @Field("code") code: String? = null
-    ): Response<ApiResponse<List<LiveAddressDto>>>
+    ): Response<ApiResponse<LiveAddressDto>>
 
     @FormUrlEncoded
     @POST("api/lapp/live/video/close")
     suspend fun closeLive(
         @Field("accessToken") accessToken: String,
-        @Field("source") source: String // 直播源，格式：设备序列号:通道号
+        @Field("deviceSerial") deviceSerial: String,
+        @Field("channelNo") channelNo: Int = 1
     ): Response<ApiResponse<Any>>
 
     // ==================== 录像回放 ====================

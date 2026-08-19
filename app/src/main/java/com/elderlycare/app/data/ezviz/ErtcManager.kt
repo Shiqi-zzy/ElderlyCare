@@ -21,6 +21,17 @@ object ErtcManager {
     var engine: ERTCEngine? = null
         private set
 
+    // ── 第九阶段：状态保护（防重复 init / 防重复 enterRoom / 失败可复位）──
+    @Volatile private var initState = InitState.Idle
+    @Volatile private var roomState = RoomState.Idle
+
+    /** init 进行中排队等待的 onReady/onError（防御并发调用方，完成后补发）。 */
+    private var pendingReady: ((ERTCEngine) -> Unit)? = null
+    private var pendingError: ((Int) -> Unit)? = null
+
+    private enum class InitState { Idle, Initializing, Ready, Failed }
+    private enum class RoomState { Idle, Entering, InRoom }
+
     /**
      * 进入房间所需参数。
      * clientToken / deviceToken / roomId 由后端 /api/rtc/token 下发（联调时确认字段）。
@@ -42,31 +53,72 @@ object ErtcManager {
         onReady: (ERTCEngine) -> Unit,
         onError: (Int) -> Unit,
     ) {
-        engine?.let { onReady(it); return }
-        val config = RTCConstant.RTCEngineConfig()
-        config.appId = appId
-        config.context = context.applicationContext
-        config.audioCodeType = RTCConstant.ErtcAudioCodeType.AAC // RK3 音频用 AAC（与 S10 一致）
-        ERTCEngine.init(config, object : ERTCEngine.OnInitListener {
-            override fun onInitialization(e: ERTCEngine) {
-                engine = e
-                onReady(e)
+        when (initState) {
+            // 已初始化完成：直接回调
+            InitState.Ready -> engine?.let { onReady(it) }
+            // 初始化进行中：排队等待，完成后补发（同一时刻至多一个等待方，防并发重复 init）
+            InitState.Initializing -> {
+                pendingReady = onReady
+                pendingError = onError
             }
+            // 空闲 / 上次失败：发起初始化
+            InitState.Idle, InitState.Failed -> {
+                initState = InitState.Initializing
+                val config = RTCConstant.RTCEngineConfig()
+                config.appId = appId
+                config.context = context.applicationContext
+                config.audioCodeType = RTCConstant.ErtcAudioCodeType.AAC // RK3 音频用 AAC（与 S10 一致）
+                ERTCEngine.init(config, object : ERTCEngine.OnInitListener {
+                    override fun onInitialization(e: ERTCEngine) {
+                        engine = e
+                        initState = InitState.Ready
+                        val waiting = pendingReady
+                        pendingReady = null
+                        pendingError = null
+                        waiting?.invoke(e)
+                        onReady(e)
+                    }
 
-            override fun onError(code: Int) = onError(code)
-        })
+                    override fun onError(code: Int) {
+                        initState = InitState.Failed
+                        val waiting = pendingError
+                        pendingReady = null
+                        pendingError = null
+                        waiting?.invoke(code)
+                        onError(code)
+                    }
+                })
+            }
+        }
     }
 
     fun setListener(listener: RTCListener?) = engine?.setRTCListener(listener)
 
-    /** 进入房间（用 clientToken） */
-    fun enterRoom(param: RoomParam) {
+    /**
+     * 进入房间（用 clientToken）。
+     * 幂等：进入中/已在房间时忽略后续调用（返回 false），保证同一时间只发生一次入会。
+     * 失败恢复：Entering 状态下入会失败 → RTCListener.onError → endCall → release() 复位为 Idle，可再次尝试。
+     */
+    fun enterRoom(param: RoomParam): Boolean {
+        if (roomState != RoomState.Idle) return false
+        roomState = RoomState.Entering
+        val e = engine
+        if (e == null) {
+            roomState = RoomState.Idle
+            return false
+        }
         val p = RTCConstant.EnterParam()
         p.appId = param.appId
         p.roomId = param.roomId
         p.userId = param.userId
         p.token = param.clientToken
-        engine?.enterRoom(p, RTCConstant.Scene.VideoCall)
+        e.enterRoom(p, RTCConstant.Scene.VideoCall)
+        return true
+    }
+
+    /** 本地成功入会后由 ViewModel 回调（onEnterRoomSuccess），标记已在房间。 */
+    fun markRoomEntered() {
+        if (roomState == RoomState.Entering) roomState = RoomState.InRoom
     }
 
     // ── 视图绑定 ──
@@ -124,8 +176,12 @@ object ErtcManager {
         false
     }
 
-    /** 释放：退出房间 + 销毁引擎 */
+    /** 释放：退出房间 + 销毁引擎。先复位状态，任何路径（含 engine 为空）都恢复可重试。 */
     fun release() {
+        initState = InitState.Idle
+        roomState = RoomState.Idle
+        pendingReady = null
+        pendingError = null
         val e = engine ?: return
         try {
             e.setLocalView(null)

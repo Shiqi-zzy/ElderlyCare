@@ -13,7 +13,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.elderlycare.app.data.model.UserRole
 import com.elderlycare.app.ui.community.*
+import com.elderlycare.app.ui.shared.QualificationGate
+import com.elderlycare.app.ui.shared.StaffAlarmScreen
+import com.elderlycare.app.ui.shared.StaffBindingApplyScreen
 import com.elderlycare.app.ui.theme.*
 
 @Composable
@@ -57,23 +61,40 @@ fun CommunityMainScreen(navController: NavHostController, onLogout: () -> Unit) 
             modifier = Modifier.padding(paddingValues)
         ) {
             composable("community_dashboard") {
-                CommunityDashboardScreen(
-                    onLogout = onLogout,
-                    onUserClick = { userId -> navController.navigate(Screen.UserDetail.createRoute(userId)) }
-                )
-            }
-            composable("community_orders") {
-                CommunityWorkOrdersScreen(
-                    onUserClick = { userId -> navController.navigate(Screen.UserDetail.createRoute(userId)) }
-                )
+                QualificationGate {
+                    CommunityDashboardScreen(
+                        onLogout = onLogout,
+                        onUserClick = { elderlyId -> navController.navigate(Screen.UserDetail.createRoute(elderlyId)) }
+                    )
+                }
             }
             composable("community_roster") {
-                CommunityRosterScreen(
-                    onNavigateToDetail = { userId -> navController.navigate(Screen.UserDetail.createRoute(userId)) }
+                QualificationGate {
+                    CommunityRosterScreen(
+                        onNavigateToDetail = { elderlyId -> navController.navigate(Screen.UserDetail.createRoute(elderlyId)) }
+                    )
+                }
+            }
+            composable("community_alarm") {
+                QualificationGate {
+                    StaffAlarmScreen()
+                }
+            }
+            composable("community_qual") {
+                CommunityQualificationScreen(
+                    onApplyBinding = { innerNavController.navigate("community_binding_apply") }
                 )
             }
-            composable("community_qual") { CommunityQualificationScreen() }
-            composable("community_playback") { CommunityAlertPlaybackScreen() }
+            composable("community_my") {
+                CommunityMyScreen(onLogout = onLogout)
+            }
+            // 社区发起绑定申请（内层全屏页，底部栏保持可见，返回 = popBackStack）
+            composable("community_binding_apply") {
+                StaffBindingApplyScreen(
+                    role = UserRole.COMMUNITY,
+                    onNavigateBack = { innerNavController.popBackStack() }
+                )
+            }
         }
     }
 }

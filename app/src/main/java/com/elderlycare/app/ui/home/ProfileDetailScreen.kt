@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +24,9 @@ import com.elderlycare.app.util.BMICalculator
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileDetailScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    /** 编辑入口：跳转档案编辑页（只编辑当前登录家属的档案，无 elderlyId 深链参数） */
+    onNavigateToEdit: () -> Unit = {}
 ) {
     // 从本地读取当前用户的真实档案（未录入则空档案兜底）
     var loadedProfile by remember { mutableStateOf<ElderlyProfile?>(null) }
@@ -45,6 +48,11 @@ fun ProfileDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = onNavigateToEdit) {
+                        Icon(Icons.Filled.Edit, contentDescription = "编辑档案")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)

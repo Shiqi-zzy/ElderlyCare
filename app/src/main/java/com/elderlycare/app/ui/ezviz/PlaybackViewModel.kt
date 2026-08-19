@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.elderlycare.app.data.ezviz.NetworkResult
 import com.elderlycare.app.data.ezviz.ServiceLocator
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,6 +37,8 @@ class PlaybackViewModel : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlaybackUiState())
     val uiState: StateFlow<PlaybackUiState> = _uiState.asStateFlow()
+
+    private var loadJob: Job? = null
 
     fun initialize(deviceSerial: String, channelNo: Int = 1) {
         val today = LocalDate.now().toString()
@@ -70,7 +73,9 @@ class PlaybackViewModel : ViewModel() {
     }
 
     fun loadPlayback() {
-        viewModelScope.launch {
+        // 幂等守卫：上一次加载仍在途时不重复发起（防快速重试/连续选日期并发请求）
+        if (loadJob?.isActive == true) return
+        loadJob = viewModelScope.launch {
             val state = _uiState.value
 
             if (state.verifyCode.length != 6) {
@@ -89,62 +94,67 @@ class PlaybackViewModel : ViewModel() {
                 it.copy(isLoading = true, error = null, playbackUrl = null, useWebView = false)
             }
 
-            when (val result = repo.getPlaybackAddress(
-                deviceSerial = state.deviceSerial,
-                startTime = state.startTime,
-                stopTime = state.stopTime,
-                code = state.verifyCode
-            )) {
-                is NetworkResult.Success -> {
-                    val rawUrl = result.data.url
-                    if (rawUrl.isBlank()) {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = "获取播放地址为空，请检查设备是否支持回放或验证码是否正确",
-                                lastLoadedDate = state.selectedDate,
-                                lastLoadedCode = state.verifyCode
-                            )
+            try {
+                when (val result = repo.getPlaybackAddress(
+                    deviceSerial = state.deviceSerial,
+                    startTime = state.startTime,
+                    stopTime = state.stopTime,
+                    code = state.verifyCode
+                )) {
+                    is NetworkResult.Success -> {
+                        val rawUrl = result.data.url
+                        if (rawUrl.isBlank()) {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = "获取播放地址为空，请检查设备是否支持回放或验证码是否正确",
+                                    lastLoadedDate = state.selectedDate,
+                                    lastLoadedCode = state.verifyCode
+                                )
+                            }
+                            return@launch
                         }
-                        return@launch
-                    }
 
-                    if (rawUrl.startsWith("ezopen://")) {
-                        val token = ServiceLocator.tokenManager.getTokenForcefully()
-                        val jssdkUrl = "https://open.ys7.com/console/jssdk/pc.html" +
-                            "?accessToken=${token ?: ""}" +
-                            "&url=${Uri.encode(rawUrl)}"
-                        Log.d(TAG, "ezopen WebView 播放")
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                playbackUrl = jssdkUrl,
-                                useWebView = true,
-                                lastLoadedDate = state.selectedDate,
-                                lastLoadedCode = state.verifyCode
-                            )
+                        if (rawUrl.startsWith("ezopen://")) {
+                            val token = ServiceLocator.tokenManager.getTokenForcefully()
+                            val jssdkUrl = "https://open.ys7.com/console/jssdk/pc.html" +
+                                "?accessToken=${token ?: ""}" +
+                                "&url=${Uri.encode(rawUrl)}"
+                            Log.d(TAG, "ezopen WebView 播放")
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    playbackUrl = jssdkUrl,
+                                    useWebView = true,
+                                    lastLoadedDate = state.selectedDate,
+                                    lastLoadedCode = state.verifyCode
+                                )
+                            }
+                        } else {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    playbackUrl = rawUrl,
+                                    lastLoadedDate = state.selectedDate,
+                                    lastLoadedCode = state.verifyCode
+                                )
+                            }
                         }
-                    } else {
+                    }
+                    is NetworkResult.Error -> {
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                playbackUrl = rawUrl,
+                                error = result.message,
                                 lastLoadedDate = state.selectedDate,
                                 lastLoadedCode = state.verifyCode
                             )
                         }
                     }
                 }
-                is NetworkResult.Error -> {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            error = result.message,
-                            lastLoadedDate = state.selectedDate,
-                            lastLoadedCode = state.verifyCode
-                        )
-                    }
-                }
+            } finally {
+                // 兜底：任何路径（含 getTokenForcefully 抛异常）都保证 loading 消失，不卡加载态
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }

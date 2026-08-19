@@ -31,6 +31,11 @@ import com.elderlycare.app.ui.theme.*
 fun AlarmListScreen(
     onViewPlayback: (AlarmMessage) -> Unit = {},
     onBack: (() -> Unit)? = null,
+    /**
+     * 点击告警的回调（社区/医院详情入口）。
+     * 非 null 时点击直接回调（不再弹本页回放弹窗）；null 时保持原行为（家属弹窗 → 查看回放）。
+     */
+    onAlarmClick: ((AlarmMessage) -> Unit)? = null,
     viewModel: AlarmListViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -116,8 +121,9 @@ fun AlarmListScreen(
                                 AlarmItem(
                                     message = message,
                                     onClick = {
-                                        selectedMessage = message
                                         viewModel.markAsRead(message.alarmId)
+                                        if (onAlarmClick != null) onAlarmClick(message)
+                                        else selectedMessage = message
                                     }
                                 )
                             }

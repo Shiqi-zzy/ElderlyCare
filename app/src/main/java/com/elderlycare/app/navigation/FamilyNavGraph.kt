@@ -16,6 +16,7 @@ import com.elderlycare.app.ui.family.AuthorizationManagementScreen
 import com.elderlycare.app.ui.family.FamilyHomeScreen
 import com.elderlycare.app.ui.family.MyScreen
 import com.elderlycare.app.ui.reports.ReportsScreen
+import kotlinx.coroutines.launch
 
 @Composable
 fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
@@ -60,6 +61,7 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
             modifier = Modifier.padding(paddingValues)
         ) {
             composable("home") {
+                val scope = rememberCoroutineScope()
                 FamilyHomeScreen(
                     onNavigateToProfile = {
                         navController.navigate(Screen.ProfileDetail.route)
@@ -79,22 +81,29 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                         }
                     },
                     onNavigateToVideo = {
-                        val serial = ServiceLocator.deviceBindingStore.load()?.deviceSerial
-                        if (serial != null) {
-                            navController.navigate(Screen.LivePreview.createRoute(serial))
+                        scope.launch {
+                            val device = ServiceLocator.bindingRepository.getCurrentUserDevice()
+                            device?.deviceSn?.let {
+                                navController.navigate(Screen.LivePreview.createRoute(it)) { launchSingleTop = true }
+                            }
                         }
                     },
                     onNavigateToEmergencyCall = {
-                        val serial = ServiceLocator.deviceBindingStore.load()?.deviceSerial
-                        if (serial != null) {
-                            navController.navigate(Screen.VideoCall.createRoute(serial))
+                        scope.launch {
+                            val device = ServiceLocator.bindingRepository.getCurrentUserDevice()
+                            device?.deviceSn?.let {
+                                navController.navigate(Screen.VideoCall.createRoute(it)) { launchSingleTop = true }
+                            }
                         }
                     },
                     onNavigateToAlertCenter = {
-                        navController.navigate(Screen.EzvizAlarms.route)
+                        navController.navigate(Screen.EzvizAlarms.route) { launchSingleTop = true }
                     },
                     onNavigateToAuthorizationMgmt = {
                         navController.navigate(Screen.AuthorizationMgmt.route)
+                    },
+                    onNavigateToMessage = {
+                        navController.navigate(Screen.Message.route)
                     }
                 )
             }
@@ -111,7 +120,7 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
             composable("messages") {
                 AlarmListScreen(
                     onViewPlayback = { message ->
-                        navController.navigate(Screen.Playback.createRoute(message.deviceSerial))
+                        navController.navigate(Screen.Playback.createRoute(message.deviceSerial)) { launchSingleTop = true }
                     }
                 )
             }
@@ -119,6 +128,9 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                 MyScreen(
                     onNavigateToProfile = {
                         navController.navigate(Screen.ProfileDetail.route)
+                    },
+                    onNavigateToBindingRequest = {
+                        navController.navigate(Screen.BindingRequest.route)
                     },
                     onNavigateToAuthorizationMgmt = {
                         navController.navigate(Screen.AuthorizationMgmt.route)

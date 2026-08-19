@@ -87,6 +87,12 @@ class EzvizRepository(
         }
     }
 
+    /**
+     * 对外暴露：获取有效 Token（供 EZOpenSDK setAccessToken 复用）。
+     * 留言模块的 SDK 调用与云广播 REST 均通过本方法复用登录态，避免重复登录。
+     */
+    suspend fun obtainValidToken(): String? = getOrRefreshToken()
+
     // ==================== 设备绑定 ====================
 
     suspend fun addDevice(deviceSerial: String, validateCode: String): NetworkResult<Unit> {
@@ -186,6 +192,21 @@ class EzvizRepository(
         }
     }
 
+    /**
+     * 查询设备语音对讲能力「原始值」（留言模块云广播能力判断用）。
+     * 萤石文档：support_talk 取值为 1 或 3 时设备才支持语音对讲/云广播，
+     * 这里返回原始值由调用方判断，避免与 getDeviceInfo 的布尔转换混用。
+     */
+    suspend fun getDeviceSupportTalkRaw(deviceSerial: String): NetworkResult<Int> {
+        val token = getOrRefreshToken()
+            ?: return NetworkResult.Error(message = "未登录或 Token 已过期，请重试")
+
+        val result = apiCall {
+            api.getDeviceCapacity(accessToken = token, deviceSerial = deviceSerial)
+        }
+        return result.map { it.supportTalk.toIntOrNull() ?: 0 }
+    }
+
     // ==================== 直播 ====================
 
     suspend fun getLiveAddress(deviceSerial: String, code: String?): NetworkResult<LiveStream> {
@@ -195,52 +216,33 @@ class EzvizRepository(
         val result = apiCall {
             api.getLiveAddress(
                 accessToken = token,
-                source = "$deviceSerial:1",
-                protocol = 2,
+                deviceSerial = deviceSerial,
+                channelNo = 1,
+                protocol = 1, // ezopen：加密设备凭 code 也能取到地址（hls 等直链协议会返回 60019）
                 code = code
             )
         }
-        return when (result) {
-            is NetworkResult.Error -> result
-
-            is NetworkResult.Success -> {
-                // data 是一个数组；优先取第一个带有效播放地址的项
-                val list = result.data
-                val dto = list.firstOrNull { !it.hls.isNullOrBlank() || !it.url.isNullOrBlank() }
-                    ?: list.firstOrNull()
-                    ?: return NetworkResult.Error(message = "直播地址返回为空")
-
-                // 单条地址可能带失败信息（如设备离线 60060=地址未绑定）
-                if (dto.hls.isNullOrBlank() && dto.url.isNullOrBlank()) {
-                    val msg = when (dto.ret) {
-                        "60060" -> "设备不在线，请确认设备已通电并联网"
-                        else -> dto.desc?.takeIf { it.isNotBlank() } ?: "无法获取播放地址，设备可能离线"
-                    }
-                    return NetworkResult.Error(message = msg)
-                }
-
-                NetworkResult.Success(
-                    LiveStream(
-                        deviceSerial = dto.deviceSerial,
-                        channelNo = dto.channelNo,
-                        hlsUrl = dto.hls,
-                        hlsHdUrl = dto.hlsHd,
-                        rtmpUrl = dto.rtmp,
-                        rtmpHdUrl = dto.rtmpHd,
-                        flvUrl = dto.flvAddress,
-                        flvHdUrl = dto.hdFlvAddress,
-                        liveId = dto.liveId,
-                        expireTime = dto.expireTime
-                    )
-                )
-            }
+        return result.map { dto ->
+            LiveStream(
+                deviceSerial = dto.deviceSerial,
+                channelNo = dto.channelNo,
+                url = dto.url,
+                hlsUrl = dto.hls,
+                hlsHdUrl = dto.hlsHd,
+                rtmpUrl = dto.rtmp,
+                rtmpHdUrl = dto.rtmpHd,
+                flvUrl = dto.flv,
+                flvHdUrl = dto.flvHd,
+                liveId = dto.liveId,
+                expireTime = dto.expireTime
+            )
         }
     }
 
     suspend fun closeLive(deviceSerial: String, channelNo: Int = 1): NetworkResult<Unit> {
         val token = getOrRefreshToken() ?: return NetworkResult.Error(message = "未登录")
         val result = apiCall {
-            api.closeLive(accessToken = token, source = "$deviceSerial:$channelNo")
+            api.closeLive(accessToken = token, deviceSerial = deviceSerial, channelNo = channelNo)
         }
         return result.map { }
     }

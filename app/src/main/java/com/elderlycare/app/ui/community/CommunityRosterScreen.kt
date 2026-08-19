@@ -11,12 +11,33 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.elderlycare.app.data.ezviz.ServiceLocator
+import com.elderlycare.app.data.model.AppUser
 import com.elderlycare.app.ui.components.StatusBadge
+import com.elderlycare.app.ui.shared.color
+import com.elderlycare.app.ui.shared.formatTimestamp
+import com.elderlycare.app.ui.shared.hasDevice
+import com.elderlycare.app.ui.shared.healthCategory
 import com.elderlycare.app.ui.theme.*
+import kotlinx.coroutines.flow.flowOf
 
+/**
+ * 社区「用户台账」（第四阶段真实数据）。
+ * 数据来源：bindingRepository.observeAccessibleElderly(当前工作人员) —— 仅本人 ACTIVE 绑定的老人，
+ * 点击传入真实 elderlyId（非脱敏名）。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommunityRosterScreen(onNavigateToDetail: (String) -> Unit) {
+    var staff by remember { mutableStateOf<AppUser?>(null) }
+    LaunchedEffect(Unit) { staff = ServiceLocator.staffUserStore.getCurrentStaffUser() }
+
+    val elderly by remember(staff?.phone) {
+        if (staff != null) ServiceLocator.bindingRepository.observeAccessibleElderly(staff!!)
+        else flowOf(emptyList())
+    }.collectAsStateWithLifecycle(initialValue = emptyList())
+
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("用户台账", fontWeight = FontWeight.SemiBold) }, colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface))
@@ -24,20 +45,43 @@ fun CommunityRosterScreen(onNavigateToDetail: (String) -> Unit) {
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
             Surface(shape = RoundedCornerShape(0.dp), color = StatusYellow.copy(alpha = 0.08f), modifier = Modifier.fillMaxWidth()) {
-                Text("隐私保护模式：姓名、详细地址已脱敏处理", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Text("仅展示您已获授权访问的老人", modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), style = MaterialTheme.typography.labelMedium, color = TextSecondary)
             }
-            LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(mockElderly) { elder ->
-                    Card(modifier = Modifier.fillMaxWidth().clickable { onNavigateToDetail(elder.name) }, shape = RoundedCornerShape(14.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) { Text(elder.name, fontWeight = FontWeight.SemiBold); Spacer(modifier = Modifier.width(8.dp)); StatusBadge(text = elder.cameraStatus, color = if (elder.cameraStatus == "在线") StatusGreen else StatusYellow) }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("${elder.address} · ${elder.age}岁 · ${elder.gender}", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-                                Spacer(modifier = Modifier.height(2.dp))
-                                Text("上次巡访: ${elder.lastPatrol}", style = MaterialTheme.typography.labelSmall, color = TextHint)
+            if (elderly.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("暂无可访问老人，可先在「资质管理」中发起绑定申请", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
+                }
+            } else {
+                LazyColumn(contentPadding = PaddingValues(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(elderly, key = { it.elderlyId }) { item ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable { onNavigateToDetail(item.elderlyId) },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = Surface),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                        ) {
+                            Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(item.profile.name, fontWeight = FontWeight.SemiBold)
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        StatusBadge(text = item.profile.healthCategory().label, color = item.profile.healthCategory().color())
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        "${item.profile.gender.label} · ${item.profile.age}岁 · ${item.profile.phone.ifEmpty { "未留电话" }}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = TextSecondary
+                                    )
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        "设备：${if (item.profile.hasDevice()) "已绑定" else "未绑定"} · 绑定时间 ${formatTimestamp(item.bindingCreatedAt)}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = TextHint
+                                    )
+                                }
+                                TextButton(onClick = { onNavigateToDetail(item.elderlyId) }) { Text("查看档案", color = Primary) }
                             }
-                            TextButton(onClick = { onNavigateToDetail(elder.name) }) { Text("查看档案", color = Primary) }
                         }
                     }
                 }
@@ -45,12 +89,3 @@ fun CommunityRosterScreen(onNavigateToDetail: (String) -> Unit) {
         }
     }
 }
-
-private data class ElderInfo(val name: String, val gender: String, val age: String, val address: String, val cameraStatus: String, val lastPatrol: String)
-private val mockElderly = listOf(
-    ElderInfo("张**", "男", "72", "3号楼", "在线", "2024-07-09"),
-    ElderInfo("李**", "女", "68", "5号楼", "在线", "2024-07-10"),
-    ElderInfo("王**", "男", "75", "1号楼", "离线", "2024-07-05"),
-    ElderInfo("赵**", "女", "81", "2号楼", "在线", "2024-07-08"),
-    ElderInfo("刘**", "男", "70", "4号楼", "在线", "2024-07-07")
-)

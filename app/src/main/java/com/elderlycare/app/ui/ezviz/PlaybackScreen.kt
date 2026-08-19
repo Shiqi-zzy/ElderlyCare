@@ -1,8 +1,5 @@
 package com.elderlycare.app.ui.ezviz
 
-import android.annotation.SuppressLint
-import android.webkit.WebView
-import android.webkit.WebViewClient
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,7 +18,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elderlycare.app.ui.theme.*
 import java.time.Instant
@@ -58,9 +54,7 @@ fun PlaybackScreen(
         if (uiState.isPlaying) player.resume() else player.pause()
     }
 
-    DisposableEffect(Unit) {
-        onDispose { player.release() }
-    }
+    // player 释放由 rememberEzvizPlayer 的 DisposableEffect 负责，这里不重复 release
 
     Scaffold(
         containerColor = Background,
@@ -325,39 +319,4 @@ fun PlaybackScreen(
             DatePicker(state = datePickerState)
         }
     }
-}
-
-/**
- * 萤石 JSSDK 网页播放器（用于播放 ezopen 协议的加密视频流）
- */
-@SuppressLint("SetJavaScriptEnabled")
-@Composable
-private fun EzvizWebPlayer(url: String, modifier: Modifier = Modifier) {
-    AndroidView(
-        modifier = modifier,
-        factory = { ctx ->
-            WebView(ctx).apply {
-                settings.javaScriptEnabled = true
-                settings.mediaPlaybackRequiresUserGesture = false
-                settings.domStorageEnabled = true
-                settings.allowContentAccess = true
-                settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
-                webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(
-                        view: WebView?,
-                        request: android.webkit.WebResourceRequest?
-                    ): Boolean {
-                        val reqUrl = request?.url?.toString() ?: ""
-                        return reqUrl.startsWith("ezopen://")
-                    }
-                }
-                loadUrl(url)
-            }
-        },
-        update = { webView ->
-            if (webView.url != url) {
-                webView.loadUrl(url)
-            }
-        }
-    )
 }

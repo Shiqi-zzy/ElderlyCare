@@ -35,6 +35,8 @@ enum class DeviceStatus(val value: Int, val label: String) {
 data class LiveStream(
     val deviceSerial: String,
     val channelNo: Int,
+    /** v2 接口统一播放地址（ezopen:// 或 http(s) 直链） */
+    val url: String?,
     val hlsUrl: String?,
     val hlsHdUrl: String?,
     val rtmpUrl: String?,
@@ -45,7 +47,8 @@ data class LiveStream(
     val expireTime: Long?
 ) {
     fun getPreferredUrl(): String? =
-        hlsUrl?.takeIf { it.isNotBlank() }
+        url?.takeIf { it.isNotBlank() }
+            ?: hlsUrl?.takeIf { it.isNotBlank() }
             ?: flvUrl?.takeIf { it.isNotBlank() }
             ?: rtmpUrl?.takeIf { it.isNotBlank() }
 

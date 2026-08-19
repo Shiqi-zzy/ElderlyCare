@@ -1,5 +1,5 @@
 [versions]
-agp = "8.2.2"
+agp = "8.13.2"
 kotlin = "1.9.22"
 coreKtx = "1.12.0"
 lifecycleRuntime = "2.7.0"
@@ -14,6 +14,9 @@ coil = "2.7.0"
 coroutines = "1.8.1"
 ezvizSdk = "5.28.4"
 datastore = "1.1.1"
+# Room 数据库（留言模块）
+room = "2.6.1"
+ksp = "1.9.22-1.0.17"
 
 [libraries]
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -51,9 +54,15 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 # DataStore (轻量持久化)
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
-# 萤石开放平台 SDK（内置 ERTC 实时音视频 + EZOpenSDK）
+# 萤石开放平台 SDK（内置 ERTC 实时音视频 + EZOpenSDK + 旧 videotalk/mediarecoder）
 ezviz-sdk = { group = "io.github.ezviz-open", name = "ezviz-sdk", version.ref = "ezvizSdk" }
+
+# Room（留言模块数据层）
+room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
+room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
+room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
