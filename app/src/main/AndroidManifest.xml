@@ -1,34 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- 网络权限 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
-
-    <!-- 存储权限 (截图保存) -->
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- 云通话（ERTC）：麦克风采集 -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <!-- 云通话（ERTC）：蓝牙音频/免提（萤石 SDK 要求） -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- 萤石 EZOpenSDK 要求 -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-
-    <!-- 后台通知 (报警推送 Phase 2) -->
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:name=".EzVizApp"
+        android:name=".ElderlyCareApp"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher_foreground"
-        android:label="@string/app_name"
+        android:label="萤石养老看护"
         android:supportsRtl="true"
-        android:theme="@style/Theme.EzVizPro"
+        android:theme="@style/Theme.ElderlyCare"
         android:usesCleartextTraffic="true">
-
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.ElderlyCare">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
