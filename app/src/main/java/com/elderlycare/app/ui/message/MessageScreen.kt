@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -32,8 +33,8 @@ import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MailOutline
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.AlertDialog
@@ -62,9 +63,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -95,17 +98,24 @@ import java.util.Locale
  * 底部「文字留言」+「按住留言」（按住录音，上滑取消，松开自动双通道发送）。
  *
  * 留言方向区分（对齐萤石原生 App）：
- * - 设备发来（msgType=3）：EZOpenSDK 微聊公开接口拉取（RK3 按键录音），
+ * - 设备发来（msgType=3）：EZOpenSDK 微聊公开接口拉取（RK3 按键录音/视频），
  *   展示「设备留言」标签 + 发送时间 + 未读蓝点，点播放标记已读，长按删除（本地+云端）；
- * - 手机发出（文字/录音留言）：本地记录，展示发送状态（绿勾/红叉+失败原因）与通路标签。
- *   录音留言双通道发送：①EZOpenSDK 语音通话（实时对讲）②云广播 REST（录音文件下发）。
+ *   视频留言渲染缩略图 + 时长角标，点击跳视频播放页（不在此页播放）；
+ * - 手机发出（文字/录音留言）：本地记录，展示发送状态（绿勾/红叉+失败原因）。
+ *   录音留言级联发送：优先双通道（语音通话 + 云广播），失败自动降级 sendonce
+ *   一次性下发（通路记录在 sendChannel 字段，UI 不展示双通道/云广播等技术名词）；
+ *   失败消息支持重发（完整复现整套级联）。
  *
- * 列表项：发送人/时间、文字内容（文字留言）、播放按钮 + 时长 + 发送状态图标 + 通路标签；
- * 点击播放并标记已读，长按删除（本地记录 + 音频文件 + 云端留言）。
+ * 列表项：发送人/时间、文字内容（文字留言）、播放按钮 + 时长 + 发送状态图标；
+ * 点击播放并标记已读，长按删除（本地记录 + 音频/视频文件 + 云端留言）。
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun MessageScreen(onBack: () -> Unit, onNavigateToRemindPlan: () -> Unit) {
+fun MessageScreen(
+    onBack: () -> Unit,
+    onNavigateToRemindPlan: () -> Unit,
+    onNavigateToDeviceVideo: (Long) -> Unit = {}
+) {
     val context = LocalContext.current
     val viewModel: MessageViewModel = viewModel()
 
@@ -247,7 +257,16 @@ fun MessageScreen(onBack: () -> Unit, onNavigateToRemindPlan: () -> Unit) {
                             when (item) {
                                 is MessageFeedItem.Msg -> {
                                     val message = item.message
-                                    if (message.msgType == MessageEntity.MSG_TYPE_SYSTEM) {
+                                    if (message.msgType == MessageEntity.MSG_TYPE_ADVICE) {
+                                        // 健康建议（医院医护 → 家属）：独立气泡，无播放/状态/通路标签，
+                                        // 不走设备播报（仅 App 消息模块查看）；点击标已读，长按删除
+                                        HealthAdviceCard(
+                                            message = message,
+                                            timeText = timeFormat.format(Date(message.createTime)),
+                                            onClick = { viewModel.markRead(message) },
+                                            onLongClick = { deleteTarget = message }
+                                        )
+                                    } else if (message.msgType == MessageEntity.MSG_TYPE_SYSTEM) {
                                         // 系统消息（提醒计划播报完成）：静态灰字，无蓝点/播放/状态/通路
                                         SystemMessageCard(
                                             message = message,
@@ -260,6 +279,8 @@ fun MessageScreen(onBack: () -> Unit, onNavigateToRemindPlan: () -> Unit) {
                                             progress = if (playingId == message.id) playbackProgress else 0f,
                                             timeText = timeFormat.format(Date(message.createTime)),
                                             onClick = { viewModel.togglePlay(message) },
+                                            onVideoClick = { onNavigateToDeviceVideo(message.id) },
+                                            onResend = { viewModel.resend(message) },
                                             onLongClick = { deleteTarget = message }
                                         )
                                     }
@@ -313,7 +334,7 @@ fun MessageScreen(onBack: () -> Unit, onNavigateToRemindPlan: () -> Unit) {
     }
 }
 
-/** 底部操作栏：文字留言 + 按住留言（按住录音，上滑取消，松开自动双通道发送） */
+/** 底部操作栏：文字留言 + 按住留言（按住录音，上滑取消，松开自动级联发送：双通道失败自动降级） */
 @Composable
 private fun MessageBottomBar(
     onTextClick: () -> Unit,
@@ -363,7 +384,11 @@ private fun MessageBottomBar(
                         }
                     }
             ) {
-                Icon(Icons.Filled.Mic, contentDescription = null, modifier = Modifier.size(18.dp))
+                Image(
+                    painter = painterResource(R.drawable.ic_audio_record),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
                 Spacer(Modifier.width(6.dp))
                 Text(stringResource(R.string.message_hold_to_talk))
             }
@@ -403,12 +428,22 @@ private fun MessageRow(
     progress: Float,
     timeText: String,
     onClick: () -> Unit,
+    onVideoClick: () -> Unit,
+    onResend: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    // 视频留言分支：设备上传的视频（msgType=3 且有本地缓存或云端 URL），
+    // 渲染缩略图卡片，点击跳视频播放页（不在此页 ExoPlayer 播音频）
+    val isVideo = message.msgType == MessageEntity.MSG_TYPE_DEVICE &&
+        (message.localVideoPath.isNotBlank() || message.videoCloudUrl.isNotBlank())
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+            .combinedClickable(
+                onClick = if (isVideo) onVideoClick else onClick,
+                onLongClick = onLongClick
+            ),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = SurfaceColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -465,73 +500,108 @@ private fun MessageRow(
 
                 Spacer(Modifier.height(6.dp))
 
-                // 播放 + 时长 + 状态 + 通路
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onClick, modifier = Modifier.size(30.dp)) {
-                        Icon(
-                            if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                            contentDescription = stringResource(
-                                if (isPlaying) R.string.message_pause else R.string.message_play
-                            ),
-                            tint = Primary,
-                            modifier = Modifier.size(22.dp)
+                if (isVideo) {
+                    // 设备视频留言：缩略图 + 「视频留言」标签 + 时长角标，点击跳视频播放页
+                    Box {
+                        VideoThumbnail(
+                            thumbUrl = message.thumbUrl,
+                            localVideoPath = message.localVideoPath,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(150.dp)
+                                .clip(RoundedCornerShape(10.dp))
                         )
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        stringResource(R.string.message_record_duration_format, message.duration),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = TextSecondary
-                    )
-                    Spacer(Modifier.width(10.dp))
-
-                    // 发送状态图标（仅 App 发送的留言）
-                    if (message.msgType != MessageEntity.MSG_TYPE_DEVICE) {
-                        when (message.sendStatus) {
-                            MessageEntity.SEND_STATUS_SENDING -> CircularProgressIndicator(
-                                modifier = Modifier.size(14.dp),
-                                strokeWidth = 2.dp,
-                                color = Primary
-                            )
-                            MessageEntity.SEND_STATUS_SUCCESS -> Icon(
-                                Icons.Filled.CheckCircle,
-                                contentDescription = stringResource(R.string.message_send_success),
-                                tint = StatusGreen,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            else -> Icon(
-                                Icons.Filled.ErrorOutline,
-                                contentDescription = stringResource(R.string.message_send_failed),
-                                tint = StatusRed,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        // 通路标签
-                        val channelRes = when (message.sendChannel) {
-                            MessageEntity.CHANNEL_TALK -> R.string.message_channel_talk
-                            MessageEntity.CHANNEL_BROADCAST -> R.string.message_channel_broadcast
-                            else -> R.string.message_channel_both
-                        }
-                        Surface(shape = RoundedCornerShape(6.dp), color = Primary.copy(alpha = 0.08f)) {
+                        Surface(
+                            modifier = Modifier.align(Alignment.TopStart).padding(6.dp),
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color.Black.copy(alpha = 0.55f)
+                        ) {
                             Text(
-                                stringResource(channelRes),
+                                stringResource(R.string.message_video_label),
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Primary
+                                color = Color.White
                             )
+                        }
+                        Surface(
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(6.dp),
+                            shape = RoundedCornerShape(6.dp),
+                            color = Color.Black.copy(alpha = 0.55f)
+                        ) {
+                            Text(
+                                stringResource(R.string.message_record_duration_format, message.duration),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White
+                            )
+                        }
+                    }
+                } else {
+                    // 播放 + 时长 + 发送状态
+                    // （通路标签已删除：面向普通用户不展示双通道/云广播等技术名词，sendChannel 仅入库调试用）
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onClick, modifier = Modifier.size(30.dp)) {
+                            Icon(
+                                if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                contentDescription = stringResource(
+                                    if (isPlaying) R.string.message_pause else R.string.message_play
+                                ),
+                                tint = Primary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            stringResource(R.string.message_record_duration_format, message.duration),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TextSecondary
+                        )
+                        Spacer(Modifier.width(10.dp))
+
+                        // 发送状态图标（仅 App 发送的留言）
+                        if (message.msgType != MessageEntity.MSG_TYPE_DEVICE) {
+                            when (message.sendStatus) {
+                                MessageEntity.SEND_STATUS_SENDING -> CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp,
+                                    color = Primary
+                                )
+                                MessageEntity.SEND_STATUS_SUCCESS -> Icon(
+                                    Icons.Filled.CheckCircle,
+                                    contentDescription = stringResource(R.string.message_send_success),
+                                    tint = StatusGreen,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                else -> Icon(
+                                    Icons.Filled.ErrorOutline,
+                                    contentDescription = stringResource(R.string.message_send_failed),
+                                    tint = StatusRed,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
                         }
                     }
                 }
 
-                // 失败原因
-                if (message.sendStatus == MessageEntity.SEND_STATUS_FAILED && message.failReason.isNotBlank()) {
+                // 失败原因 + 重发（仅失败的录音留言；重发完整复现「双通道 → 失败自动降级 sendonce」级联）
+                if (message.sendStatus == MessageEntity.SEND_STATUS_FAILED &&
+                    message.msgType == MessageEntity.MSG_TYPE_RECORD
+                ) {
                     Spacer(Modifier.height(2.dp))
-                    Text(
-                        message.failReason,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = StatusRed
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (message.failReason.isNotBlank()) {
+                            Text(
+                                message.failReason,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = StatusRed,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = onResend) {
+                            Text(stringResource(R.string.message_resend), color = Primary)
+                        }
+                    }
                 }
 
                 // 播放进度
@@ -579,6 +649,69 @@ private fun SystemMessageCard(message: MessageEntity, timeText: String) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary
                 )
+            }
+        }
+    }
+}
+
+/** 健康建议气泡（医院医护 → 家属）：仅 App 消息模块查看，无播放/状态图标，不走设备播报 */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun HealthAdviceCard(
+    message: MessageEntity,
+    timeText: String,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Primary.copy(alpha = 0.06f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(modifier = Modifier.padding(14.dp)) {
+            Icon(
+                Icons.Filled.Favorite,
+                contentDescription = null,
+                tint = Primary,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            message.senderName.ifBlank { stringResource(R.string.message_sender_doctor) },
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Surface(shape = RoundedCornerShape(6.dp), color = Primary.copy(alpha = 0.12f)) {
+                            Text(
+                                stringResource(R.string.message_type_advice),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Primary
+                            )
+                        }
+                    }
+                    Text(timeText, style = MaterialTheme.typography.labelSmall, color = TextHint)
+                }
+                if (message.content.isNotBlank()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        message.content,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextPrimary
+                    )
+                }
             }
         }
     }

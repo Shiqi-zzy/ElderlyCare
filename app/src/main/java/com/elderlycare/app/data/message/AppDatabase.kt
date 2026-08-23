@@ -4,6 +4,10 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.elderlycare.app.data.hospital.HealthAdvice
+import com.elderlycare.app.data.hospital.HealthAdviceDao
+import com.elderlycare.app.data.hospital.MedicalFollowUpDao
+import com.elderlycare.app.data.hospital.MedicalFollowUpRecord
 import com.elderlycare.app.data.reminder.RemindPlanEntity
 import com.elderlycare.app.data.reminder.RemindPlanDao
 
@@ -13,13 +17,25 @@ import com.elderlycare.app.data.reminder.RemindPlanDao
  * 版本历史：
  * - v1：message 表（留言）
  * - v2：新增 remind_plan 表（提醒计划），见 AppMigrations.MIGRATION_1_2
+ * - v3：message 表新增 localVideoPath/videoCloudUrl/thumbUrl/messageCategory 四列
+ *   （消息分类汇总），见 AppMigrations.MIGRATION_2_3
+ * - v4：移除 v3 初版创建的 remoteId 部分唯一索引（Room 不支持声明部分索引，
+ *   升级校验索引集合不一致会崩溃），见 AppMigrations.MIGRATION_3_4
+ * - v5：医院端业务——新增 medical_follow_up_record（医疗随访）、health_advice
+ *   （健康建议）两张表；remind_plan 表新增 source 列（0=家属/1=医院本地提醒/
+ *   2=医院设备播报），见 AppMigrations.MIGRATION_4_5
  * 后续新增表/字段时在此处 +1 并写 Migration。
  * 注意：只有降级兜底（fallbackToDestructiveMigrationOnDowngrade），
  * 升级必须写 Migration，否则旧数据升级崩溃。
  */
 @Database(
-    entities = [MessageEntity::class, RemindPlanEntity::class],
-    version = 2,
+    entities = [
+        MessageEntity::class,
+        RemindPlanEntity::class,
+        MedicalFollowUpRecord::class,
+        HealthAdvice::class
+    ],
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -27,6 +43,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
 
     abstract fun remindPlanDao(): RemindPlanDao
+
+    abstract fun medicalFollowUpDao(): MedicalFollowUpDao
+
+    abstract fun healthAdviceDao(): HealthAdviceDao
 
     companion object {
         private const val DB_NAME = "elderly_care.db"
@@ -44,8 +64,14 @@ abstract class AppDatabase : RoomDatabase() {
                 )
                     // 留言操作全部为 suspend，允许主线程查询仅为降级保障
                     .fallbackToDestructiveMigrationOnDowngrade()
-                    // 升级迁移（v1→v2 新增 remind_plan 表，保住 message 数据）
-                    .addMigrations(AppMigrations.MIGRATION_1_2)
+                    // 升级迁移（v1→v2 remind_plan 表；v2→v3 消息分类 4 列；
+                    // v3→v4 移除部分唯一索引；v4→v5 医院端随访/建议表 + remind_plan.source）
+                    .addMigrations(
+                        AppMigrations.MIGRATION_1_2,
+                        AppMigrations.MIGRATION_2_3,
+                        AppMigrations.MIGRATION_3_4,
+                        AppMigrations.MIGRATION_4_5
+                    )
                     .build()
                     .also { instance = it }
             }

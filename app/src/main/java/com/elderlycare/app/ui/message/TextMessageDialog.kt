@@ -24,10 +24,12 @@ import androidx.compose.ui.unit.dp
 import com.elderlycare.app.R
 import com.elderlycare.app.ui.theme.Primary
 import com.elderlycare.app.ui.theme.TextHint
+import com.elderlycare.app.util.limitCodePoints
 
 /**
  * 文字留言弹窗。
- * 80 字上限 + 实时计数（0/80）；确认后由 AI 自动转为语音下发（提示文案见 message_text_ai_tag）。
+ * 20 字上限 + 实时计数（0/20，萤石 v3 闹铃接口 content 上限）；
+ * 确认后经闹铃接口由 RK3 设备本地 TTS 播报（提示文案见 message_text_ai_tag）。
  */
 @Composable
 fun TextMessageDialog(
@@ -43,7 +45,8 @@ fun TextMessageDialog(
             Column {
                 OutlinedTextField(
                     value = text,
-                    onValueChange = { text = it.take(MAX_TEXT_LEN) },
+                    // 按 Unicode 码点截断，避免把 emoji 截成两半产生非法字符
+                    onValueChange = { text = it.limitCodePoints(MAX_TEXT_LEN) },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text(stringResource(R.string.message_text_input_hint)) },
                     maxLines = 4
@@ -82,4 +85,4 @@ fun TextMessageDialog(
     )
 }
 
-private const val MAX_TEXT_LEN = 80
+private const val MAX_TEXT_LEN = 20

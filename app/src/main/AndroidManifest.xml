@@ -39,6 +39,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- 医院端复诊提醒到点接收器（AlarmManager 触发：本地通知 + 标记已播报 + 系统消息） -->
+        <receiver
+            android:name=".util.RemindAlarmReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

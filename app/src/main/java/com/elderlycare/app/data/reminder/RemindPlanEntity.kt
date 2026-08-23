@@ -1,5 +1,6 @@
 package com.elderlycare.app.data.reminder
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -19,6 +20,9 @@ import androidx.room.PrimaryKey
  * - executed：客户端展示态（是否已播报完成），由 schedule/record 轮询标记；
  *   refreshFromDevice 覆盖同步后会重置，等下次轮询恢复
  * - enabled：恒 1，预留暂停能力（避免后续加字段再写 Migration）
+ * - source：计划来源（v5 新增）0=家属端创建、1=医院端创建（仅 App 本地提醒，
+ *   未下发设备）、2=医院端创建（已下发设备播报）。医院端计划以本地为准——
+ *   差分同步清理脏行时跳过 source != 0（本地提醒行 clockId 为空，不随设备清删）
  */
 @Entity(
     tableName = "remind_plan",
@@ -65,7 +69,15 @@ data class RemindPlanEntity(
     val deviceSerial: String,
 
     /** 本地创建时间戳（毫秒，列表/混合流排序用） */
-    val createTime: Long
+    val createTime: Long,
+
+    /**
+     * 计划来源（v5 新增）：0=家属端创建、1=医院端创建（仅 App 本地提醒）、
+     * 2=医院端创建（已下发设备播报）。
+     * defaultValue 与 MIGRATION_4_5 的 ALTER 语句 DEFAULT 0 对齐。
+     */
+    @ColumnInfo(defaultValue = "0")
+    val source: Int = SOURCE_FAMILY
 ) {
     companion object {
         const val REPEAT_ONCE = 0    // 单次
@@ -75,5 +87,12 @@ data class RemindPlanEntity(
         /** 是否已播报完成 */
         const val EXECUTED_NO = 0
         const val EXECUTED_YES = 1
+
+        /** 计划来源：家属端创建（默认，行为不变） */
+        const val SOURCE_FAMILY = 0
+        /** 计划来源：医院端创建（仅 App 本地提醒，未下发设备） */
+        const val SOURCE_HOSPITAL_LOCAL = 1
+        /** 计划来源：医院端创建（已下发 RK3 设备播报） */
+        const val SOURCE_HOSPITAL_DEVICE = 2
     }
 }

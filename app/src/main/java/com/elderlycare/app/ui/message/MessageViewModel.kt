@@ -38,10 +38,12 @@ import java.io.File
  * 留言页 ViewModel。
  *
  * 职责：混合 feed（普通留言 + 系统消息 + 提醒计划）、未读数、
- * 按住录音留言（声波采样/计时/60s 上限，松开双通道发送：语音通话 + 云广播）、
+ * 按住录音留言（声波采样/计时/60s 上限，松开后仓库级联发送：
+ * 双通道优先，失败自动降级 sendonce 一次性下发）、失败消息重发、
  * 文字留言发送（HTTP 提交文本给后端，云端 TTS + 萤石云广播）、
- * 设备留言接收（EZOpenSDK 微聊公开接口：拉取列表/下载音频/标记已读/删除）、
+ * 设备留言接收（EZOpenSDK 微聊公开接口：拉取视频留言/下载/标记已读/删除）、
  * 音频播放（ExoPlayer）、提醒计划播报完成轮询（每 60s，页面销毁自动取消）、
+ * 设备留言静默轮询（每 60s 与提醒计划轮询合并，失败只打日志）、
  * 语音通话状态透传（通路①）。
  *
  * 设备源：BindingRepository 授权链路（响应式）——登出/切号后自动置空，
@@ -180,7 +182,9 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * 提醒计划播报完成轮询：每 60s 查萤石 schedule/record（今天+昨天），
-     * 识别已播报 → markExecuted + 插【系统】消息。页面销毁随 viewModelScope
+     * 识别已播报 → markExecuted + 插【系统】消息；同一循环内静默拉取设备视频留言
+     * （refreshDeviceMessages，失败只打日志不阻断，与消息中心并发拉取靠
+     * remoteId 唯一索引 + insertIgnore 幂等）。页面销毁随 viewModelScope
      * 自动取消；全程静默（轮询不能崩，失败打日志下一轮重试）。
      */
     private fun startRemindPolling() {
@@ -190,6 +194,11 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
                     deviceSerial?.let { ServiceLocator.reminderRepository.pollExecutedAndInsert(it) }
                 } catch (e: Exception) {
                     Log.w(TAG, "提醒计划播报轮询失败", e)
+                }
+                try {
+                    deviceSerial?.let { repository.refreshDeviceMessages(it, deviceName) }
+                } catch (e: Exception) {
+                    Log.w(TAG, "设备视频留言轮询失败", e)
                 }
                 delay(60_000)
             }
@@ -239,7 +248,7 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    /** 松开按钮：结束录音并发送（双通道） */
+    /** 松开按钮：结束录音并发送（仓库内部级联：双通道优先，失败自动降级 sendonce） */
     fun finishRecording() {
         if (!_isRecording.value) return
         recordJob?.cancel()
@@ -261,7 +270,7 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
                     toast(R.string.message_record_too_short)
                 }
                 else -> {
-                    // 录音文件 → 双通道发送（语音通话 + 云广播）
+                    // 录音文件 → 级联发送（双通道 → 失败自动降级 sendonce，用户无感知）
                     val serial = deviceSerial
                     if (serial == null) {
                         MessageFiles.deleteQuietly(file)
@@ -290,7 +299,7 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
 
     // ==================== 发送 ====================
 
-    /** 文字留言（HTTP 提交文本给后端 → 云端 TTS + 萤石云广播下发） */
+    /** 文字留言（萤石 v3 闹铃接口：RK3 本地 TTS 即时播报，播报后自动清理临时闹铃） */
     fun sendText(text: String) {
         val serial = deviceSerial ?: run {
             toast(R.string.message_no_device)
@@ -302,6 +311,13 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // ==================== 播放 ====================
+
+    /** 健康建议气泡点击：仅标记已读（无音频可播，不走设备播报） */
+    fun markRead(message: MessageEntity) {
+        if (!message.isRead) {
+            viewModelScope.launch { repository.markMessageRead(message) }
+        }
+    }
 
     /** 点击留言：播放/暂停音频，同时标记已读 */
     fun togglePlay(message: MessageEntity) {
@@ -368,6 +384,18 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
     fun delete(message: MessageEntity) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteMessage(message)
+        }
+    }
+
+    /**
+     * 重发失败的录音留言：完整复现「双通道 → 失败自动降级 sendonce」整套级联流程。
+     * 仅失败状态的录音留言可重发（守卫在仓库层），失败 toast 提示。
+     */
+    fun resend(message: MessageEntity) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (repository.resendMessage(message) < 0) {
+                toast(R.string.message_resend_failed)
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package com.elderlycare.app.ui.family
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -12,45 +13,107 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.elderlycare.app.data.binding.BindingRepository
+import com.elderlycare.app.data.ezviz.NetworkResult
 import com.elderlycare.app.data.ezviz.ServiceLocator
+import com.elderlycare.app.data.ezviz.model.Device
+import com.elderlycare.app.data.ezviz.model.DeviceStatus
+import com.elderlycare.app.data.model.ElderlyProfile
 import com.elderlycare.app.data.model.FamilyUser
 import com.elderlycare.app.ui.theme.*
 import kotlinx.coroutines.launch
 
+// ==================== 我的页色值（页面局部常量，不改全局主题） ====================
+private val PageBg = Color(0xFFF7F9FC)
+private val CardWhite = Color.White
+private val OnlineGreen = Color(0xFF4CAF50)
+private val OfflineGray = Color(0xFFBDBDBD)
+private val AvatarBg = Color(0xFF4086E8)
+
+/** 手机号脱敏：181****6373（不足 7 位原样展示，空则空串） */
+private fun maskPhone(phone: String): String =
+    if (phone.length >= 7) phone.take(3) + "****" + phone.takeLast(4) else phone
+
+/** 身高体重计算 BMI（任一无效返回 null） */
+private fun calcBmi(profile: ElderlyProfile): String? {
+    val h = profile.height.toDoubleOrNull() ?: return null
+    val w = profile.weight.toDoubleOrNull() ?: return null
+    if (h <= 0 || w <= 0) return null
+    return String.format("%.1f", w / ((h / 100.0) * (h / 100.0)))
+}
+
+/**
+ * 「我的」页面（卡片式重构）：个人信息头 / 健康档案 / 我的设备 / 授权管理 / 客服与设置。
+ *
+ * 业务数据只展示一次：档案信息只在健康档案卡、设备信息只在我的设备卡、
+ * 授权信息只在授权管理卡；头部卡片仅账号信息（姓名/脱敏手机号/在线状态）。
+ * 字段为空一律浅灰占位提示，不渲染异常文本。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyScreen(
-    onNavigateToProfile: () -> Unit,
-    onNavigateToBindingRequest: () -> Unit,
+    onNavigateToProfileEdit: () -> Unit,
+    onNavigateToDevice: () -> Unit,
     onNavigateToAuthorizationMgmt: () -> Unit,
+    onOpenMessagesTab: () -> Unit,
     onLogout: () -> Unit
 ) {
     val scope = rememberCoroutineScope()
+
+    // 账号（FamilyUser）
     var user by remember { mutableStateOf<FamilyUser?>(null) }
-    LaunchedEffect(Unit) {
-        user = ServiceLocator.userStore.getCurrentUser()
-    }
+    LaunchedEffect(Unit) { user = ServiceLocator.userStore.getCurrentUser() }
     val currentUser = user
-    // 已绑定设备（响应式）：读 BindingRepository 授权链路（档案 deviceSn），不读 DeviceBindingStore 缓存
+
+    // 老人档案（健康档案卡数据源）
+    var profile by remember { mutableStateOf<ElderlyProfile?>(null) }
+    LaunchedEffect(Unit) {
+        val uid = ServiceLocator.userStore.getCurrentUserId() ?: ""
+        profile = ServiceLocator.profileStore.getPrimaryProfile(uid)
+    }
+    val currentProfile = profile
+
+    // 已绑定设备（响应式，授权链路）+ 云端设备详情（在线状态）
     var boundDevice by remember { mutableStateOf<BindingRepository.AccessibleDevice?>(null) }
     LaunchedEffect(Unit) {
         ServiceLocator.bindingRepository.observeCurrentUserDevice().collect { boundDevice = it }
     }
+    var deviceInfo by remember(boundDevice?.deviceSn) { mutableStateOf<Device?>(null) }
+    LaunchedEffect(boundDevice?.deviceSn) {
+        val sn = boundDevice?.deviceSn
+        deviceInfo = sn?.let {
+            when (val result = ServiceLocator.repository.getDeviceInfo(sn)) {
+                is NetworkResult.Success -> result.data
+                else -> null
+            }
+        }
+    }
 
-    var showInfoDialog by remember { mutableStateOf(false) }
-    var showDeviceDialog by remember { mutableStateOf(false) }
+    // 授权绑定关系（授权管理卡空态判定；家属侧查询本人老人档案的绑定）
+    var bindingCount by remember { mutableIntStateOf(0) }
+    LaunchedEffect(profile?.userId) {
+        val uid = profile?.userId
+        bindingCount = uid?.let { ServiceLocator.bindingRepository.getBindingsForFamily(it).size } ?: 0
+    }
+
+    // 弹窗状态
+    var showHelpDialog by remember { mutableStateOf(false) }
+    var showContactDialog by remember { mutableStateOf(false) }
+    var showPrivacyDialog by remember { mutableStateOf(false) }
     var showAboutDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        containerColor = PageBg,
         topBar = {
             TopAppBar(
                 title = { Text("我的", fontWeight = FontWeight.SemiBold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = PageBg)
             )
         }
     ) { paddingValues ->
@@ -59,85 +122,175 @@ fun MyScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // 头部：头像 + 姓名 + 手机号
-            Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-                Row(modifier = Modifier.fillMaxWidth().padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = CircleShape, color = Primary.copy(alpha = 0.1f), modifier = Modifier.size(64.dp)) {
+            // ① 个人信息头卡片（仅账号信息：头像/姓名/脱敏手机号/在线状态 + 设置/消息入口）
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = CardWhite),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(shape = CircleShape, color = AvatarBg.copy(alpha = 0.12f), modifier = Modifier.size(60.dp)) {
                         Box(contentAlignment = Alignment.Center) {
                             Text(
                                 (currentUser?.name ?: "家").take(1),
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Primary
+                                color = AvatarBg
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(currentUser?.name ?: "未登录", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleLarge)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(currentUser?.phone ?: "", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                    Spacer(Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            currentUser?.name ?: "未登录",
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            maskPhone(currentUser?.phone.orEmpty()).ifBlank { "未绑定手机号" },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary
+                        )
+                        Spacer(Modifier.height(5.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(OnlineGreen)
+                            )
+                            Spacer(Modifier.width(5.dp))
+                            Text("在线", style = MaterialTheme.typography.labelSmall, color = OnlineGreen)
+                        }
+                    }
+                    IconButton(onClick = { showAboutDialog = true }) {
+                        Icon(Icons.Filled.Settings, "设置", tint = TextSecondary)
+                    }
+                    IconButton(onClick = onOpenMessagesTab) {
+                        Icon(Icons.Filled.Notifications, "消息", tint = TextSecondary)
                     }
                 }
             }
 
-            // 账号与个人信息
-            SectionCard {
-                MenuItemRow(icon = Icons.Filled.Person, label = "个人信息") { showInfoDialog = true }
+            // ② 健康档案卡片
+            ModuleCard(title = "健康档案", actionText = "编辑档案", onAction = onNavigateToProfileEdit) {
+                FieldRow("老人姓名", currentProfile?.name?.takeIf { it.isNotBlank() } ?: "未填写")
+                FieldRow("性别", currentProfile?.gender?.label?.takeIf { it.isNotBlank() } ?: "未填写")
+                FieldRow("BMI", calcBmi(currentProfile ?: ElderlyProfile()) ?: "未填写")
+                FieldRow(
+                    "血压",
+                    currentProfile?.let {
+                        if (it.bloodPressureHigh.isNotBlank() && it.bloodPressureLow.isNotBlank())
+                            "${it.bloodPressureHigh}/${it.bloodPressureLow} mmHg" else "未填写"
+                    } ?: "未填写"
+                )
+                FieldRow("血糖", "暂无数据")
             }
 
-            // 老人管理
-            SectionCard {
-                MenuItemRow(icon = Icons.Filled.Folder, label = "老人档案", onClick = onNavigateToProfile)
-                MenuItemRow(icon = Icons.Filled.Devices, label = "设备管理") { showDeviceDialog = true }
-            }
-
-            // 其他
-            SectionCard {
-                MenuItemRow(icon = Icons.Filled.Link, label = "绑定申请", onClick = onNavigateToBindingRequest)
-                MenuItemRow(icon = Icons.Filled.Shield, label = "授权管理", onClick = onNavigateToAuthorizationMgmt)
-                MenuItemRow(icon = Icons.Filled.Info, label = "关于我们") { showAboutDialog = true }
-            }
-
-            // 退出登录
-            Button(
-                onClick = { showLogoutDialog = true },
-                modifier = Modifier.fillMaxWidth().height(48.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Error)
+            // ③ 我的设备卡片（仅当前绑定主设备，不循环多条）
+            ModuleCard(
+                title = "我的设备",
+                actionText = if (boundDevice != null) "查看设备" else null,
+                onAction = onNavigateToDevice
             ) {
-                Text("退出登录", color = OnPrimary, fontWeight = FontWeight.SemiBold)
+                if (boundDevice == null) {
+                    PlaceholderText("暂无绑定设备")
+                } else {
+                    val online = deviceInfo?.status == DeviceStatus.ONLINE
+                    FieldRow("设备名称", "RK3(${boundDevice!!.deviceSn})")
+                    FieldRow(
+                        "设备状态",
+                        if (online) "在线" else "离线",
+                        valueColor = if (online) OnlineGreen else OfflineGray
+                    )
+                    FieldRow("电量", "暂无数据")
+                }
             }
+
+            // ④ 授权管理卡片（机构/家属/设备三类授权；无授权数据显示浅灰占位）
+            ModuleCard(title = "授权管理", actionText = "管理授权", onAction = onNavigateToAuthorizationMgmt) {
+                val hasAuth = bindingCount > 0 || boundDevice?.deviceBound == true
+                if (!hasAuth) {
+                    PlaceholderText("暂无授权信息")
+                } else {
+                    AuthRow(Icons.Filled.Apartment, "机构授权")
+                    AuthRow(Icons.Filled.Group, "家属授权")
+                    AuthRow(Icons.Filled.Devices, "设备授权")
+                }
+            }
+
+            // ⑤ 客服与设置卡片（列表布局，退出登录红色置底）
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = CardWhite),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+                    Text("客服与设置", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+                    Spacer(Modifier.height(6.dp))
+                    ServiceRow(Icons.Filled.HelpOutline, "帮助中心") { showHelpDialog = true }
+                    ServiceRow(Icons.Filled.HeadsetMic, "联系客服") { showContactDialog = true }
+                    ServiceRow(Icons.Filled.Lock, "隐私设置") { showPrivacyDialog = true }
+                    ServiceRow(Icons.Filled.Logout, "退出登录", danger = true) { showLogoutDialog = true }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
         }
     }
 
-    if (showInfoDialog) {
-        EditInfoDialog(
-            user = currentUser,
-            onDismiss = { showInfoDialog = false },
-            onSave = { name, contact ->
-                scope.launch {
-                    currentUser?.let {
-                        ServiceLocator.userStore.updateUser(it.copy(name = name, contact = contact))
-                        user = ServiceLocator.userStore.getCurrentUser()
-                    }
-                }
-                showInfoDialog = false
-            }
+    if (showHelpDialog) {
+        AlertDialog(
+            onDismissRequest = { showHelpDialog = false },
+            title = { Text("帮助中心") },
+            text = {
+                Text(
+                    "• 首页功能网格：抓拍 / 视频通话 / 对讲 / 录像 / 留言 / 录音 / 点播 / 广播；\n" +
+                        "• 全部抓拍：右下角相机按钮手动抓拍，设备告警自动抓拍；\n" +
+                        "• 消息中心：按发送方聚合会话，点击进入对话查看全部消息。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = { TextButton(onClick = { showHelpDialog = false }) { Text("知道了") } }
         )
     }
 
-    if (showDeviceDialog) {
+    if (showContactDialog) {
         AlertDialog(
-            onDismissRequest = { showDeviceDialog = false },
-            title = { Text("设备管理") },
+            onDismissRequest = { showContactDialog = false },
+            title = { Text("联系客服") },
             text = {
-                Text(boundDevice?.let { "已绑定设备：${it.deviceSn}" } ?: "尚未绑定 RK3 设备")
+                Text(
+                    "如需帮助，请联系萤石官方客服：\n官方 APP 内「我的-在线客服」或官网客服中心。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
             },
-            confirmButton = { TextButton(onClick = { showDeviceDialog = false }) { Text("知道了") } }
+            confirmButton = { TextButton(onClick = { showContactDialog = false }) { Text("知道了") } }
+        )
+    }
+
+    if (showPrivacyDialog) {
+        AlertDialog(
+            onDismissRequest = { showPrivacyDialog = false },
+            title = { Text("隐私设置") },
+            text = {
+                Text(
+                    "本应用仅采集家庭看护所需数据（老人档案、设备告警与留言），" +
+                        "数据保存在本机与您绑定的设备/后端服务，不对外共享。",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TextSecondary
+                )
+            },
+            confirmButton = { TextButton(onClick = { showPrivacyDialog = false }) { Text("知道了") } }
         )
     }
 
@@ -172,44 +325,100 @@ fun MyScreen(
     }
 }
 
+/** 通用业务模块卡片：白底圆角 + 柔和阴影 + 模块标题居左 + 可选右上操作按钮 */
 @Composable
-private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), content = content)
+private fun ModuleCard(
+    title: String,
+    actionText: String? = null,
+    onAction: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = CardWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+                if (actionText != null && onAction != null) {
+                    TextButton(onClick = onAction) {
+                        Text(actionText, color = Primary, style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+            Spacer(Modifier.height(6.dp))
+            content()
+        }
     }
 }
 
+/** 档案/设备字段行：浅灰标签 + 值（空值由调用方传占位文案，值颜色可指定） */
 @Composable
-private fun MenuItemRow(icon: ImageVector, label: String, onClick: () -> Unit) {
+private fun FieldRow(label: String, value: String, valueColor: Color = TextPrimary) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            label,
+            modifier = Modifier.width(72.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            color = TextSecondary
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (value.startsWith("未") || value.startsWith("暂无")) TextHint else valueColor
+        )
+    }
+}
+
+/** 授权管理列表行：图标 + 名称 */
+@Composable
+private fun AuthRow(icon: ImageVector, label: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = Primary, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(10.dp))
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
+    }
+}
+
+/** 客服与设置列表行：图标 + 名称 + 右侧箭头（退出登录红色） */
+@Composable
+private fun ServiceRow(icon: ImageVector, label: String, danger: Boolean = false, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = Primary, modifier = Modifier.size(22.dp))
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-        Icon(Icons.Filled.KeyboardArrowRight, null, tint = TextHint)
+        Icon(
+            icon,
+            null,
+            tint = if (danger) Error else TextSecondary,
+            modifier = Modifier.size(20.dp)
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            label,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = if (danger) Error else TextPrimary
+        )
+        if (!danger) {
+            Icon(Icons.Filled.KeyboardArrowRight, null, tint = TextHint)
+        }
     }
 }
 
+/** 浅灰占位提示文字（无数据模块统一使用） */
 @Composable
-private fun EditInfoDialog(user: FamilyUser?, onDismiss: () -> Unit, onSave: (String, String) -> Unit) {
-    var name by remember { mutableStateOf(user?.name ?: "") }
-    var contact by remember { mutableStateOf(user?.contact ?: "") }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("个人信息") },
-        text = {
-            Column {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("姓名") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(value = contact, onValueChange = { contact = it }, label = { Text("联系方式") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
-            }
-        },
-        confirmButton = { TextButton(onClick = { onSave(name, contact) }) { Text("保存") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } }
-    )
+private fun PlaceholderText(text: String) {
+    Text(text, style = MaterialTheme.typography.bodyMedium, color = TextHint)
 }

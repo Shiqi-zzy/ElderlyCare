@@ -27,6 +27,8 @@ fun WizardScreen(
 ) {
     var currentStep by remember { mutableIntStateOf(1) }
     var profile by remember { mutableStateOf(ElderlyProfile()) }
+    // 第 6 步设备验证码是否已同步后端（device_auth）；已绑定设备且未同步时禁用【完成】
+    var backendSynced by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
 
     // 切换步骤时自动滚动到顶部
@@ -99,7 +101,9 @@ fun WizardScreen(
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Primary
                         ),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        // 保留「可不绑定设备完成向导」自由度；已绑定设备则必须验证码已同步后端
+                        enabled = currentStep < 6 || !profile.deviceBound || backendSynced
                     ) {
                         Icon(
                             imageVector = Icons.Filled.ArrowForward,
@@ -146,7 +150,7 @@ fun WizardScreen(
                         3 -> Step3MedicalHistory(profile) { profile = it }
                         4 -> Step5PhysicalExam(profile) { profile = it }
                         5 -> Step6Hobbies(profile) { profile = it }
-                        6 -> Step7DeviceBinding(profile) { profile = it }
+                        6 -> Step7DeviceBinding(profile, { profile = it }, backendSynced) { backendSynced = it }
                     }
                 }
             }

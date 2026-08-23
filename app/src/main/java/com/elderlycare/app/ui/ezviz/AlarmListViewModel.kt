@@ -6,11 +6,11 @@ import androidx.lifecycle.viewModelScope
 import com.elderlycare.app.data.ezviz.NetworkResult
 import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.data.ezviz.model.AlarmMessage
+import com.elderlycare.app.ui.shared.AuthorizedSnsProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -27,14 +27,17 @@ data class AlarmListUiState(
  * 告警列表 ViewModel（角色感知权限过滤）。
  *
  * 云端 getAlarmList 按 AppKey 账号全量返回、无 deviceSn 参数，因此本层按「当前用户可访问设备的
- * deviceSn 集合」过滤：家属 = 本人档案 deviceSn；社区/医院 = 本人 ACTIVE 绑定老人的 deviceSn。
+ * deviceSn 集合」（AuthorizedSnsProvider，角色感知）过滤：家属 = 本人档案 deviceSn；
+ * 社区/医院 = 本人 ACTIVE 绑定老人的 deviceSn。
  * REVOKED 解绑 → 授权集合实时缩小 → 对应告警立即从列表消失（Room Flow 自动失效）。
+ *
+ * 消息中心联动：拉取成功按授权 SN 过滤后静默落库 message 表（messageCategory=2，
+ * alarmId 幂等）；云端标记已读成功后回写本地告警消息已读。
  */
 class AlarmListViewModel : ViewModel() {
 
     private val TAG = "AlarmListViewModel"
     private val repo = ServiceLocator.repository
-    private val bindingRepository = ServiceLocator.bindingRepository
 
     /** 已授权设备 SN 集合（角色感知，实时更新） */
     private val _authorizedSns = MutableStateFlow<Set<String>>(emptySet())
@@ -62,29 +65,9 @@ class AlarmListViewModel : ViewModel() {
     val uiState: StateFlow<AlarmListUiState> = _uiState
 
     init {
-        // 解析当前角色并订阅授权设备集合
+        // 订阅授权设备集合（角色感知，逻辑在 AuthorizedSnsProvider，与消息中心共用）
         viewModelScope.launch {
-            val familyUid = ServiceLocator.userStore.getCurrentUserId()
-            if (familyUid != null) {
-                // 家属：本人档案的 deviceSn
-                ServiceLocator.profileStore.observeProfiles()
-                    .map { profiles ->
-                        profiles.filter { it.userId == familyUid }
-                            .mapNotNull { it.deviceSn.takeIf { sn -> sn.isNotBlank() } }
-                            .toSet()
-                    }
-                    .collect { _authorizedSns.value = it }
-            } else {
-                val staff = ServiceLocator.staffUserStore.getCurrentStaffUser()
-                if (staff != null) {
-                    // 社区/医院：本人 ACTIVE 绑定老人的 deviceSn（REVOKED 实时消失）
-                    bindingRepository.observeAccessibleElderly(staff)
-                        .map { list ->
-                            list.mapNotNull { it.profile.deviceSn.takeIf { sn -> sn.isNotBlank() } }.toSet()
-                        }
-                        .collect { _authorizedSns.value = it }
-                }
-            }
+            AuthorizedSnsProvider.flow().collect { _authorizedSns.value = it }
         }
         loadMessages()
     }
@@ -99,6 +82,13 @@ class AlarmListViewModel : ViewModel() {
         when (val result = repo.getAlarmList(pageStart = 0, pageSize = 50)) {
             is NetworkResult.Success -> {
                 _rawMessages.value = result.data
+                // 静默落库消息中心（messageCategory=2 报警，alarmId 幂等，失败不影响列表）
+                try {
+                    val filtered = result.data.filter { it.deviceSerial in _authorizedSns.value }
+                    ServiceLocator.messageRepository.saveAlertMessages(filtered)
+                } catch (e: Exception) {
+                    Log.w(TAG, "告警落库消息中心失败", e)
+                }
             }
             is NetworkResult.Error -> {
                 Log.e(TAG, "获取报警列表失败: ${result.message}")
@@ -122,6 +112,12 @@ class AlarmListViewModel : ViewModel() {
                 is NetworkResult.Success -> {
                     _rawMessages.value = _rawMessages.value?.map {
                         if (it.alarmId == alarmId) it.copy(isRead = true) else it
+                    }
+                    // 回写消息中心本地已读（msgType=5 不触发 SDK 云端操作，仅本地库）
+                    try {
+                        ServiceLocator.messageRepository.markAlarmMessageRead(alarmId)
+                    } catch (e: Exception) {
+                        Log.w(TAG, "消息中心告警已读回写失败", e)
                     }
                 }
                 is NetworkResult.Error -> { /* 静默失败 */ }

@@ -32,6 +32,8 @@ fun FamilyWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
     var currentStep by remember { mutableIntStateOf(1) }
     var profile by remember { mutableStateOf(ElderlyProfile()) }
     var showNotice by remember { mutableStateOf(false) }
+    // 第 6 步设备验证码是否已同步后端（device_auth）；已绑定设备且未同步时禁用【完成】
+    var backendSynced by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -67,7 +69,9 @@ fun FamilyWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
                         onClick = { if (currentStep < 6) currentStep++ else showNotice = true },
-                        shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = Primary), modifier = Modifier.weight(1f)
+                        shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = Primary), modifier = Modifier.weight(1f),
+                        // 保留「可不绑定设备完成向导」自由度；已绑定设备则必须验证码已同步后端
+                        enabled = currentStep < 6 || !profile.deviceBound || backendSynced
                     ) {
                         Icon(Icons.Filled.ArrowForward, null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
@@ -88,7 +92,7 @@ fun FamilyWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
                         3 -> Step3MedicalHistory(profile) { profile = it }
                         4 -> Step5PhysicalExam(profile) { profile = it }
                         5 -> Step6Hobbies(profile) { profile = it }
-                        6 -> Step7DeviceBinding(profile) { profile = it }
+                        6 -> Step7DeviceBinding(profile, { profile = it }, backendSynced) { backendSynced = it }
                     }
                 }
             }

@@ -13,6 +13,7 @@
 参考: https://icnopen.ezviz.com/help/4919
 """
 import json
+import os
 import time
 import threading
 import urllib.request
@@ -230,3 +231,139 @@ def cancel_call(call_id: str) -> dict:
         "/api/service/rtc/call/cancel",
         {"appId": EZVIZ_RTC_APP_ID, "callId": call_id},
     )
+
+
+# ═══════════════════════════════════════════════════════
+# 抓拍与图片（设备自动告警抓拍 / 手动云端抓拍共用）
+# ═══════════════════════════════════════════════════════
+
+def _resp_ok(result: dict) -> bool:
+    """兼容两种返回形态：service/* 接口 meta.code、lapp/* 接口顶层 code（字符串）。"""
+    code = (result.get("meta") or {}).get("code")
+    if code is None:
+        code = result.get("code")
+    return code == 200 or str(code) == "200"
+
+
+def capture_device(device_serial: str, channel_no: int = 1) -> dict:
+    """云端抓拍：调萤石 /api/lapp/device/capture（form 携带 accessToken，
+    与 leave_message_routes 的 voice/send 实测样式一致，不用 service/* 的 Header 约定）。
+
+    返回完整 JSON（code/msg/data），由调用方判断 code。
+    官方建议同设备两次抓拍间隔 ≥4 秒；错误码 10028/10029=频率超限、20008=设备响应超时。
+    """
+    token = _get_access_token()
+    if not token:
+        return {"code": -1, "msg": "获取 accessToken 失败", "data": None}
+
+    url = f"{EZVIZ_OPEN_BASE_URL}/api/lapp/device/capture"
+    body = urllib.parse.urlencode({
+        "accessToken": token,
+        "deviceSerial": device_serial.upper(),  # 官方要求字母大写
+        "channelNo": channel_no,
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    print(f"[ERTC] capture 请求: deviceSerial={device_serial.upper()} channelNo={channel_no}")
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8", errors="replace")
+        print(f"[ERTC] capture HTTP {e.code}: {raw}")
+        try:
+            return json.loads(raw)
+        except Exception:
+            return {"code": e.code, "msg": raw, "data": None}
+    except Exception as e:
+        print(f"[ERTC] capture 请求异常: {e}")
+        return {"code": -1, "msg": str(e), "data": None}
+    print(f"[ERTC] capture 响应: {result}")
+    return result
+
+
+def _extract_pic_url_from_capture(result: dict) -> str:
+    """宽容取抓拍结果图片 URL：data 可能为字符串 / dict.url / dict.picUrl。"""
+    data = result.get("data")
+    if not data:
+        return ""
+    if isinstance(data, str):
+        return data
+    if isinstance(data, dict):
+        return str(data.get("url") or data.get("picUrl") or "")
+    return ""
+
+
+def download_file(url: str, target_path: str, timeout: int = 30,
+                  max_bytes: int = 10 * 1024 * 1024) -> bool:
+    """下载文件字节到 target_path（父目录自动创建）；超限/异常删残留返回 False。"""
+    if not url:
+        return False
+    parent = os.path.dirname(target_path)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = resp.read(max_bytes + 1)
+        if len(data) > max_bytes:
+            print(f"[ERTC] 下载超限 {len(data)} > {max_bytes}: {url}")
+            return False
+        with open(target_path, "wb") as f:
+            f.write(data)
+        return True
+    except Exception as e:
+        print(f"[ERTC] 下载文件失败: {url} -> {e}")
+        try:
+            if os.path.exists(target_path):
+                os.remove(target_path)
+        except OSError:
+            pass
+        return False
+
+
+def try_decrypt_picture(url: str, device_serial: str, validate_code: str) -> Optional[str]:
+    """尝试调萤石 REST 图片解密，返回解密后图片 URL。
+
+    TODO 待真机验证：官方文档未收录该 REST 接口（官方实证路径只有 SDK 本地
+    decryptData）。此函数为尝试性占位实现：任何失败仅记日志返回 None，
+    绝不抛异常、绝不阻断告警流程（调用方保留原始 URL）。
+    """
+    token = _get_access_token()
+    if not token or not validate_code:
+        print("[ERTC] 解密前置条件不足（token/验证码），跳过解密")
+        return None
+    try:
+        body = urllib.parse.urlencode({
+            "accessToken": token,
+            "deviceSerial": device_serial.upper(),
+            "channelNo": 1,
+            "picUrl": url,
+            "validateCode": validate_code,
+        }).encode("utf-8")
+        req = urllib.request.Request(
+            f"{EZVIZ_OPEN_BASE_URL}/api/lapp/device/encrypt/picture",
+            data=body,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            method="POST",
+        )
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            result = json.loads(resp.read().decode("utf-8"))
+        print(f"[ERTC] 图片解密响应: {result}")
+        if _resp_ok(result):
+            data = result.get("data")
+            if isinstance(data, str) and data:
+                return data
+            if isinstance(data, dict):
+                decrypted = data.get("url") or data.get("picUrl")
+                if decrypted:
+                    return str(decrypted)
+        print(f"[ERTC] 图片解密失败/无结果: {result}")
+        return None
+    except Exception as e:
+        print(f"[ERTC] 图片解密异常（接口可能不存在，属预期降级）: {e}")
+        return None

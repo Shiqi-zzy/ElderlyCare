@@ -53,6 +53,30 @@ interface EzvizVoiceApi {
     ): Response<VoiceSendResponse>
 
     /**
+     * 临时语音下发（一次性，不入云广播语音库）。
+     * 官方文档：https://open.ezviz.com/help/1252（api/lapp/voice/sendonce）
+     *
+     * 与 upload+send 两步流程的区别：本地录音文件 multipart 一步上传并直接下发设备
+     * 扬声器一次性播放，不占用云广播语音库配额。要求设备能力集 support_talk=1/3；
+     * 文件支持 wav/mp3/aac，≤20M、≤60s（本项目约定仅发送 ADTS 裸 AAC，见
+     * WavToAacTranscoder）。
+     *
+     * @param accessToken  访问令牌（multipart part，与 uploadVoiceFile 风格一致）
+     * @param deviceSerial 设备序列号
+     * @param voiceFile    音频文件（ADTS 裸 AAC）
+     * @param channelNo    通道号（可选，默认 1）
+     * @return code=200 为成功；data.msgId 为萤石消息 id（待实测字段，null 安全）
+     */
+    @Multipart
+    @POST("api/lapp/voice/sendonce")
+    suspend fun sendVoiceOnce(
+        @Part("accessToken") accessToken: RequestBody,
+        @Part("deviceSerial") deviceSerial: RequestBody,
+        @Part voiceFile: MultipartBody.Part,
+        @Part("channelNo") channelNo: RequestBody? = null
+    ): Response<VoiceSendOnceResponse>
+
+    /**
      * 查询设备语音列表 / 云广播下发状态。
      * 新版接口（域名 icnopen.ezviz.com），返回 voiceInfos 中 status 字段：
      * 0=同步完成，1=同步中，2=失败。
@@ -96,6 +120,18 @@ data class VoiceUploadData(
 data class VoiceSendResponse(
     val code: String = "",
     val msg: String = ""
+)
+
+/** 临时语音下发（sendonce）返回 */
+data class VoiceSendOnceResponse(
+    val code: String = "",
+    val msg: String = "",
+    val data: VoiceSendOnceData? = null
+)
+
+data class VoiceSendOnceData(
+    /** 萤石消息 id（TODO 待真机实测：以 sendonce 实际返回结构为准，null 安全） */
+    val msgId: String? = null
 )
 
 /** 设备语音列表（新版接口返回，meta 包一层） */

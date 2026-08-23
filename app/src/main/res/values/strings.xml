@@ -14,11 +14,11 @@
     <string name="message_record_duration_format">%1$d 秒</string>
     <string name="message_record_too_short">录音时间太短</string>
     <string name="message_permission_denied">需要麦克风权限才能录音留言</string>
-    <string name="message_text_input_hint">输入留言内容…</string>
-    <string name="message_text_ai_tag">AI 完成后将自动转为语音</string>
+    <string name="message_text_input_hint">输入留言内容（20 字以内）…</string>
+    <string name="message_text_ai_tag">发送后由设备本地语音播报</string>
     <string name="message_text_done">完成</string>
     <string name="message_text_cancel">取消</string>
-    <string name="message_text_count_format">%1$d/80</string>
+    <string name="message_text_count_format">%1$d/20</string>
     <string name="message_text_empty_tip">留言内容不能为空</string>
     <string name="message_delete_confirm">删除这条留言？</string>
     <string name="message_delete">删除</string>
@@ -53,6 +53,35 @@
     <string name="message_home_subtitle">语音留言直达设备，随时提醒老人</string>
     <string name="message_refresh_failed">同步设备留言失败</string>
     <string name="message_unread_dot">未读</string>
+
+    <!-- ===== 消息中心 ===== -->
+    <string name="message_center_title">消息中心</string>
+    <string name="message_center_tab_all">全部</string>
+    <string name="message_center_tab_leave">留言消息</string>
+    <string name="message_center_tab_alert">报警消息</string>
+    <string name="message_center_mark_all_read">全部已读</string>
+    <string name="message_center_mark_all_read_done">已全部标记为已读</string>
+    <string name="message_center_empty">暂无消息</string>
+    <string name="message_center_open_leave">去留言</string>
+    <string name="message_category_leave">留言</string>
+    <string name="message_category_alert">报警</string>
+
+    <!-- ===== 离线语音下发（sendonce 一次性下发） ===== -->
+    <string name="message_send_once_unsupported">设备不支持语音下发</string>
+    <string name="message_send_failed_device_offline">设备离线或不可达，请稍后重试</string>
+    <string name="message_audio_invalid">录音文件格式错误，请重新录制</string>
+    <string name="message_audio_too_large">录音文件过大</string>
+    <string name="message_record_too_long">录音超过 60 秒，请重新录制</string>
+    <string name="message_transcode_failed">录音转换失败，请重新录制</string>
+    <string name="message_resend">重发</string>
+    <string name="message_resend_failed">重发失败</string>
+    <string name="message_resend_file_missing">录音文件已不存在，无法重发</string>
+
+    <!-- ===== 设备视频留言 ===== -->
+    <string name="message_video_label">视频留言</string>
+    <string name="message_video_play_failed">视频播放失败</string>
+    <string name="message_video_not_found">视频不存在或已被删除</string>
+    <string name="message_video_retry">重试</string>
 
     <!-- ===== 提醒计划模块 ===== -->
     <string name="reminder_plan_title">提醒计划</string>
@@ -106,4 +135,99 @@
     <!-- ===== 档案录入（本地持久化 + 智能体长期记忆上报） ===== -->
     <string name="profile_save_success">档案保存成功</string>
     <string name="profile_save_failed">档案保存失败，请重试</string>
+
+    <!-- ===== 医院端：健康档案页操作入口 ===== -->
+    <string name="hospital_records_follow_up">随访</string>
+    <string name="hospital_records_advice">建议</string>
+    <string name="hospital_records_report">报告</string>
+    <string name="hospital_records_remind">复诊提醒</string>
+
+    <!-- ===== 医院端：医疗随访记录 ===== -->
+    <string name="hospital_follow_up_title">医疗随访</string>
+    <string name="hospital_follow_up_empty">暂无随访记录</string>
+    <string name="hospital_follow_up_all_hint">从患者列表选择老人可录入随访记录</string>
+    <string name="hospital_follow_up_add">新建随访</string>
+    <string name="hospital_follow_up_content_label">随访内容</string>
+    <string name="hospital_follow_up_content_required">随访内容不能为空</string>
+    <string name="hospital_follow_up_status">随访状态</string>
+    <string name="hospital_follow_up_status_pending">待处理</string>
+    <string name="hospital_follow_up_status_done">已完成</string>
+    <string name="hospital_follow_up_saved">随访记录已保存</string>
+
+    <!-- ===== 医院端：健康建议录入 ===== -->
+    <string name="hospital_advice_title">健康建议</string>
+    <string name="hospital_advice_empty">暂无健康建议</string>
+    <string name="hospital_advice_input_label">建议内容</string>
+    <string name="hospital_advice_input_hint">填写健康建议（仅家属端 App 消息模块查看，不播报到设备）</string>
+    <string name="hospital_advice_submit">提交建议</string>
+    <string name="hospital_advice_content_required">建议内容不能为空</string>
+    <string name="hospital_advice_saved">建议已保存，已同步到家属端消息模块</string>
+    <string name="hospital_advice_saved_no_device">建议已保存（老人未绑定设备，暂不推送消息）</string>
+
+    <!-- ===== 医院端：复诊提醒 ===== -->
+    <string name="hospital_remind_title">复诊提醒</string>
+    <string name="hospital_remind_select_elderly">选择老人</string>
+    <string name="hospital_remind_no_elderly">暂无可访问患者</string>
+    <string name="hospital_remind_empty">暂无复诊提醒</string>
+    <string name="hospital_remind_new">新建复诊提醒</string>
+    <string name="hospital_remind_text_label">提醒内容</string>
+    <string name="hospital_remind_content_required">提醒内容不能为空</string>
+    <string name="hospital_remind_elderly_required">请先选择老人</string>
+    <string name="hospital_remind_date">提醒日期</string>
+    <string name="hospital_remind_send_to_device">下发设备进行播报</string>
+    <string name="hospital_remind_no_auth_toast">暂无家属授权，不能下发提醒到设备</string>
+    <string name="hospital_remind_no_device_toast">该老人未绑定设备，不能下发播报</string>
+    <string name="hospital_remind_local_only">仅App提醒</string>
+    <string name="hospital_remind_device_push">设备播报</string>
+    <string name="hospital_remind_saved">复诊提醒已保存</string>
+    <string name="hospital_remind_notification_channel">复诊提醒通知</string>
+    <string name="hospital_remind_notify_content">%1$s 已到提醒时间</string>
+    <string name="hospital_remind_notify_permission_hint">未授予通知权限，App 将无法弹出提醒通知</string>
+    <string name="hospital_remind_system_sender">复诊提醒</string>
+    <string name="hospital_remind_system_msg_format">%1$s 已到提醒时间</string>
+
+    <!-- ===== 医院端：本地健康报告 ===== -->
+    <string name="hospital_report_title">健康报告</string>
+    <string name="hospital_report_no_auth">未获得家属授权，无法查看健康报告</string>
+    <string name="hospital_report_local_hint">本地聚合报告（数据来自本地档案与告警记录，非跨端后端版）</string>
+    <string name="hospital_report_overview">健康概况</string>
+    <string name="hospital_report_alerts">告警统计</string>
+    <string name="hospital_report_alerts_empty">暂无告警记录（可在告警页刷新同步）</string>
+    <string name="hospital_report_assessment">本地聚合评估</string>
+    <string name="hospital_report_follow_up_count">随访记录 %1$d 条</string>
+    <string name="hospital_report_advice_count">健康建议 %1$d 条</string>
+
+    <!-- ===== 消息：健康建议气泡（家属端） ===== -->
+    <string name="message_type_advice">健康建议</string>
+    <string name="message_sender_doctor">医护</string>
+
+    <!-- ===== RK3 点播 / 广播FM（设备媒体播放，与 sendOnce 留言广播完全独立） ===== -->
+    <string name="rk3_play_title">点播</string>
+    <string name="rk3_fm_title">广播FM</string>
+    <string name="rk3_play_subtitle">RK3 音频点播</string>
+    <string name="rk3_fm_subtitle">RK3 网络电台</string>
+    <string name="rk3_tab_recommend">推荐</string>
+    <string name="rk3_tab_music">音乐</string>
+    <string name="rk3_tab_opera">戏曲</string>
+    <string name="rk3_tab_fairy_tale">童话故事</string>
+    <string name="rk3_tab_poetry">诗词跟学</string>
+    <string name="rk3_fm_group_recommend">推荐</string>
+    <string name="rk3_fm_group_national">国家广播</string>
+    <string name="rk3_fm_group_local">地方广播</string>
+    <string name="rk3_bind_required">请先绑定RK3设备</string>
+    <string name="rk3_premium_required">部分音频需要智控畅享服务</string>
+    <string name="rk3_device_offline">设备离线或不可达，请稍后重试</string>
+    <string name="rk3_api_pending">该功能接口待开通，敬请期待</string>
+    <string name="rk3_mock_switch">Mock 演示</string>
+    <string name="rk3_play_state_idle">空闲</string>
+    <string name="rk3_play_state_playing">播放中</string>
+    <string name="rk3_play_state_paused">已暂停</string>
+    <string name="rk3_stop">停止</string>
+    <string name="rk3_pause">暂停</string>
+    <string name="rk3_play">播放</string>
+    <string name="rk3_now_playing">正在播放：%1$s</string>
+    <string name="rk3_fm_now_playing">正在收听：%1$s</string>
+    <string name="rk3_fm_device_bar">设备 %1$s</string>
+    <string name="rk3_premium_badge">畅享</string>
+    <string name="rk3_no_bind_hint">未绑定 RK3 设备，无法使用点播/广播</string>
 </resources>

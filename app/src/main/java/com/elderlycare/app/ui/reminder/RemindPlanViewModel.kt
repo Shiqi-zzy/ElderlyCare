@@ -11,14 +11,17 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.elderlycare.app.R
+import com.elderlycare.app.data.binding.BindingRepository
 import com.elderlycare.app.data.ezviz.NetworkResult
 import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.data.reminder.PlanDraft
 import com.elderlycare.app.data.reminder.PreviewVoices
 import com.elderlycare.app.data.reminder.RemindPlanEntity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -45,18 +48,24 @@ class RemindPlanViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     private val repository = ServiceLocator.reminderRepository
-    private val deviceSerial: String? = ServiceLocator.deviceBindingStore.load()?.deviceSerial
+
+    /**
+     * 当前可访问设备（响应式，来自绑定授权链路：userId → ACTIVE 绑定 → 档案 → deviceSn）。
+     * 与首页/留言页/消息中心同源；禁止回退 deviceBindingStore 旧缓存——
+     * 该缓存在登出时被清空、且多端合并后不再可靠，会导致「首页已绑定、提醒页提示未绑定」。
+     */
+    private val device = MutableStateFlow<BindingRepository.AccessibleDevice?>(null)
+    private val deviceSerial: String? get() = device.value?.deviceSn
 
     // ==================== 列表 ====================
 
-    val plans: StateFlow<List<RemindPlanEntity>> = deviceFlow { repository.observePlans(it) }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val plans: StateFlow<List<RemindPlanEntity>> = device
+        .flatMapLatest { d ->
+            val serial = d?.deviceSn ?: return@flatMapLatest flowOf(emptyList())
+            repository.observePlans(serial)
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    /** 未绑定设备时返回空流，避免对空序列号查询数据库 */
-    private fun <T> deviceFlow(block: (String) -> Flow<T>): Flow<T> {
-        val serial = deviceSerial ?: return flowOf()
-        return block(serial)
-    }
 
     // ==================== 表单：音色 / 试听 / 保存 ====================
 
@@ -96,7 +105,13 @@ class RemindPlanViewModel(application: Application) : AndroidViewModel(applicati
     // ==================== 初始化 / 删除 ====================
 
     init {
-        syncFromDevice()
+        // 观察授权设备（响应式）：设备变化（含首次加载）→ 同步一次云端计划
+        viewModelScope.launch {
+            ServiceLocator.bindingRepository.observeCurrentUserDevice().collect { d ->
+                device.value = d
+                syncFromDevice()
+            }
+        }
         startRemindPolling()
     }
 

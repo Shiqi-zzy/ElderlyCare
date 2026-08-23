@@ -69,4 +69,18 @@ interface RemindPlanDao {
     /** 删除设备下全部计划（覆盖式同步前清空） */
     @Query("DELETE FROM remind_plan WHERE deviceSerial = :deviceSerial")
     suspend fun deleteByDeviceSerial(deviceSerial: String)
+
+    // ===== 医院端复诊提醒（source 区分，v5 新增） =====
+
+    /** 观察医院端创建的计划（全部设备，时间倒序；source != 0） */
+    @Query("SELECT * FROM remind_plan WHERE source != 0 ORDER BY createTime DESC")
+    fun observeHospitalPlans(): Flow<List<RemindPlanEntity>>
+
+    /** 医院端创建的计划一次性查询（本地通知重调度用） */
+    @Query("SELECT * FROM remind_plan WHERE source != 0")
+    suspend fun getAllHospitalPlans(): List<RemindPlanEntity>
+
+    /** 已播报完成的医院端设备播报计划（RK3 残留闹铃清理用：source=2 且有 clockId） */
+    @Query("SELECT * FROM remind_plan WHERE source = 2 AND executed = 1 AND clockId != ''")
+    suspend fun getExecutedHospitalDevicePlans(): List<RemindPlanEntity>
 }

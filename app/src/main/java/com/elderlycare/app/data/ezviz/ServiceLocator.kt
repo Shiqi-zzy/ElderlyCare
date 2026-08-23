@@ -68,6 +68,9 @@ object ServiceLocator {
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // ===== 留言模块 =====
+    /** 应用数据库单例（message/remind_plan/medical_follow_up_record/health_advice 共用） */
+    lateinit var appDatabase: AppDatabase
+        private set
     lateinit var sdkManager: EzvizSdkManager
         private set
     lateinit var broadcastManager: EZCloudBroadcastManager
@@ -81,6 +84,10 @@ object ServiceLocator {
 
     // ===== 云通话（ERTC）= 自建信令后端 =====
     lateinit var rtcBackendApi: RtcBackendApi
+        private set
+
+    // ===== 抓拍模块（手动云端抓拍/全部抓拍/已读/未读数/验证码上报）=====
+    lateinit var captureRepository: CaptureRepository
         private set
 
     private var initialized = false
@@ -127,7 +134,8 @@ object ServiceLocator {
         appScope.launch { SeedData(staffUserStore, bindingDao).ensureSeeded() }
 
         // ===== 云通话（ERTC）= 自建信令后端 REST =====
-        // 注：必须先于 MessageRepository 创建——文字留言走后端接口（云端 TTS + 萤石云广播）
+        // 注：文字留言已改回本地 TTS + 云广播，不走此后端；
+        // 本实例仍供提醒计划手机试听（tts-preview）等接口使用
         val rtcRetrofit = Retrofit.Builder()
             .baseUrl(BuildConfig.RTC_BACKEND_URL)
             .client(okHttpClient)
@@ -135,9 +143,12 @@ object ServiceLocator {
             .build()
         rtcBackendApi = rtcRetrofit.create(RtcBackendApi::class.java)
 
+        // ===== 抓拍模块（复用自建后端 Retrofit 与 OkHttp 客户端，零新依赖）=====
+        captureRepository = CaptureRepository(appContext, rtcBackendApi, okHttpClient)
+
         // ===== 留言模块 =====
         // 云广播 REST：独立 Retrofit（域名/返回结构均与老接口不同）
-        // 注：文字留言走后端接口（云端 TTS + 萤石云广播）；录音留言双通道发送仍走 broadcastManager 云广播 REST
+        // 注：文字留言本地 TTS 合成 WAV 后走云广播；录音留言双通道发送同样走 broadcastManager 云广播 REST
         val broadcastRetrofit = Retrofit.Builder()
             .baseUrl(EzvizConfig.BROADCAST_BASE_URL)
             .client(okHttpClient)
@@ -151,27 +162,32 @@ object ServiceLocator {
             tokenProvider = { repository.obtainValidToken() },
             talkCapabilityProvider = { repository.getDeviceSupportTalkRaw(it) }
         )
-        messageRepository = MessageRepository(
-            context = appContext,
-            dao = AppDatabase.getInstance(appContext).messageDao(),
-            sdkManager = sdkManager,
-            broadcastManager = broadcastManager,
-            ezvizRepository = repository,
-            rtcBackendApi = rtcBackendApi
-        )
-
         // ===== 提醒计划（萤石 v3 设备本地闹铃）=====
         // 独立 Retrofit：@Header 鉴权 + JSON body（项目首个 @Header/@HTTP/DELETE 用法）
+        // 注意：reminderApi 需先于 MessageRepository 构建——文字留言复用 v3 闹铃接口做 RK3 本地 TTS 播报
         val reminderRetrofit = Retrofit.Builder()
             .baseUrl(BuildConfig.EZVIZ_BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
         val reminderApi = reminderRetrofit.create(EzvizReminderApi::class.java)
+        // 数据库单例先于各仓库构建（messageDao/remindPlanDao 及医院端随访/建议 DAO 共用）
+        appDatabase = AppDatabase.getInstance(appContext)
+        messageRepository = MessageRepository(
+            context = appContext,
+            dao = appDatabase.messageDao(),
+            sdkManager = sdkManager,
+            broadcastManager = broadcastManager,
+            ezvizRepository = repository,
+            reminderApi = reminderApi,
+            // 文字留言临时闹铃播报后的延迟清理挂在 appScope（页面关闭不中断）
+            cleanupScope = appScope
+        )
+
         reminderRepository = RemindPlanRepository(
             context = appContext,
-            planDao = AppDatabase.getInstance(appContext).remindPlanDao(),
-            messageDao = AppDatabase.getInstance(appContext).messageDao(),
+            planDao = appDatabase.remindPlanDao(),
+            messageDao = appDatabase.messageDao(),
             reminderApi = reminderApi,
             ezvizRepository = repository,
             rtcBackendApi = rtcBackendApi

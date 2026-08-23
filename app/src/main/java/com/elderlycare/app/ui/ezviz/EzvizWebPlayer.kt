@@ -8,6 +8,8 @@ import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 
@@ -23,7 +25,14 @@ import androidx.compose.ui.viewinterop.AndroidView
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-fun EzvizWebPlayer(url: String, modifier: Modifier = Modifier) {
+fun EzvizWebPlayer(
+    url: String,
+    modifier: Modifier = Modifier,
+    /** H5 页面 console 消息回调（如播放器错误）——默认空实现，调用方按需监听 */
+    onConsoleMessage: (String) -> Unit = {}
+) {
+    // AndroidView factory 只执行一次，用 rememberUpdatedState 保证回调始终指向最新 lambda
+    val currentOnConsoleMessage by rememberUpdatedState(onConsoleMessage)
     AndroidView(
         modifier = modifier,
         factory = { ctx ->
@@ -68,6 +77,7 @@ fun EzvizWebPlayer(url: String, modifier: Modifier = Modifier) {
                     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                         val msg = consoleMessage?.message() ?: return false
                         Log.d("EzvizWebPlayer", "H5 console [${consoleMessage.messageLevel()}]: $msg")
+                        currentOnConsoleMessage(msg)
                         return true
                     }
                 }

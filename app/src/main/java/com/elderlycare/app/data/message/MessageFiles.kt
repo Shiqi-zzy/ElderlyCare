@@ -8,9 +8,9 @@ import java.io.File
 /**
  * 留言音频文件管理。
  * 全部音频统一存放在应用私有目录 getFilesDir()/messages/ 下：
- * - dev_*  设备留言下载的音频（容器格式由云端内容决定，不带扩展名，靠 ExoPlayer 自动识别）
+ * - dev_*  设备留言下载的内容（音频/视频，容器格式由云端内容决定，不带扩展名，靠 ExoPlayer 自动识别）
  * - rec_*  按住录音留言文件（16kHz/16bit 单声道 WAV，云广播上传格式）
- * 注：文字留言 TTS 在云端完成，App 不落盘 TTS 文件。
+ * - rec_*.aac  录音转码产物（ADTS 裸 AAC，sendonce 临时语音下发用）
  */
 object MessageFiles {
 
@@ -27,6 +27,10 @@ object MessageFiles {
     /** 生成录音留言文件路径（16kHz/16bit 单声道 WAV） */
     fun newRecordFile(context: Context): File =
         File(messageDir(context), "rec_${System.currentTimeMillis()}.wav")
+
+    /** 生成录音转码产物路径（ADTS 裸 AAC，sendonce 临时语音下发用） */
+    fun newRecordAacFile(context: Context): File =
+        File(messageDir(context), "rec_${System.currentTimeMillis()}.aac")
 
     /** 生成设备留言下载文件路径（不带扩展名，内容可能是 mp3/aac） */
     fun newDeviceFile(context: Context, msgId: String): File =

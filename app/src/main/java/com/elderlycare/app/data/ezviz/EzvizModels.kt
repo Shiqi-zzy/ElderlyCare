@@ -65,9 +65,13 @@ data class DeviceCapacityDto(
  * 官方文档：https://open.ys7.com/help/77
  * 注意：该接口能力字段均为字符串类型，且字段名为下划线风格（如 support_talk），
  * 与 device/info 里的 capacity 对象不同，故单独建模，用 @SerializedName 精确映射。
+ *
+ * supportTalk 可空：RK3 固件适配缺陷——HTTP200 但返回空对象 `{}` 时该字段缺失（null），
+ * 用于区分「明确不支持 support_talk=0」与「接口未返回能力字段（按规则放行）」，
+ * 见 EzvizRepository.getDeviceSupportTalkExplicit。
  */
 data class DeviceTalkCapacityDto(
-    @SerializedName("support_talk") val supportTalk: String = "0"
+    @SerializedName("support_talk") val supportTalk: String? = null
 )
 
 /**

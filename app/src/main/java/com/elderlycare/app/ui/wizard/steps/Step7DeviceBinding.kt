@@ -1,5 +1,6 @@
 package com.elderlycare.app.ui.wizard.steps
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -22,11 +24,37 @@ import com.elderlycare.app.ui.components.StatusBadge
 import com.elderlycare.app.ui.theme.*
 import kotlinx.coroutines.launch
 
+/**
+ * 设备绑定（档案录入第 6 步）。
+ *
+ * 绑定成功（SDK 校验通过）后必须调后端上报设备验证码（device_auth），
+ * 上报成功才置 [onBackendSynced]（向导【完成】按钮据此放行）；失败 Toast
+ * 「设备信息同步失败，请检查网络后重新绑定设备」阻断流程，已绑定卡内提供「重试同步」。
+ */
 @Composable
-fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Unit) {
+fun Step7DeviceBinding(
+    profile: ElderlyProfile,
+    onUpdate: (ElderlyProfile) -> Unit,
+    backendSynced: Boolean,
+    onBackendSynced: (Boolean) -> Unit,
+) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var isBinding by remember { mutableStateOf(false) }
+    var isSyncing by remember { mutableStateOf(false) }
     var bindError by remember { mutableStateOf<String?>(null) }
+
+    // 已绑定但未同步：静默补传（存量已绑定设备 / 失败后重试兜底，幂等 upsert）
+    LaunchedEffect(profile.deviceBound, backendSynced) {
+        if (profile.deviceBound && !backendSynced &&
+            profile.deviceSn.isNotBlank() && profile.deviceValidateCode.isNotBlank()
+        ) {
+            ServiceLocator.captureRepository
+                .uploadDeviceAuth(profile.deviceSn, profile.deviceValidateCode)
+                .onSuccess { onBackendSynced(true) }
+                .onFailure { onBackendSynced(false) }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         // === SN 绑定方式 ===
@@ -44,48 +72,94 @@ fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Un
 
                 if (profile.deviceBound) {
                     // 已绑定状态
-                    Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = StatusGreen.copy(alpha = 0.08f),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                    Column {
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = StatusGreen.copy(alpha = 0.08f),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Column {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "SN: ${profile.deviceSn}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        StatusBadge(text = "已绑定", color = StatusGreen)
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        "SN: ${profile.deviceSn}",
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold
+                                        "RK3 适老桌面机器人",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = TextSecondary
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    StatusBadge(text = "已绑定", color = StatusGreen)
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text(
-                                    "RK3 适老桌面机器人",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = TextSecondary
-                                )
+                                OutlinedButton(
+                                    onClick = {
+                                        ServiceLocator.deviceBindingStore.clear()
+                                        onBackendSynced(false)
+                                        onUpdate(
+                                            profile.copy(
+                                                deviceSn = "",
+                                                deviceValidateCode = "",
+                                                deviceBound = false
+                                            )
+                                        )
+                                    },
+                                    shape = RoundedCornerShape(16.dp),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Error)
+                                ) {
+                                    Text("解绑")
+                                }
                             }
+                        }
+                        // 验证码尚未同步到后端（device_auth）→ 阻断向导，提供重试（只重传不重调 addDevice）
+                        if (!backendSynced) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "设备信息未同步到后端，同步成功后才能完成档案录入",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Error
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
                             OutlinedButton(
                                 onClick = {
-                                    ServiceLocator.deviceBindingStore.clear()
-                                    onUpdate(
-                                        profile.copy(
-                                            deviceSn = "",
-                                            deviceValidateCode = "",
-                                            deviceBound = false
-                                        )
-                                    )
+                                    scope.launch {
+                                        isSyncing = true
+                                        ServiceLocator.captureRepository
+                                            .uploadDeviceAuth(profile.deviceSn, profile.deviceValidateCode)
+                                            .onSuccess { onBackendSynced(true) }
+                                            .onFailure {
+                                                onBackendSynced(false)
+                                                Toast.makeText(
+                                                    context,
+                                                    "设备信息同步失败，请检查网络后重新绑定设备",
+                                                    Toast.LENGTH_LONG
+                                                ).show()
+                                            }
+                                        isSyncing = false
+                                    }
                                 },
-                                shape = RoundedCornerShape(16.dp),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Error)
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(20.dp),
+                                enabled = !isSyncing
                             ) {
-                                Text("解绑")
+                                if (isSyncing) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("同步中…")
+                                } else {
+                                    Text("重试同步")
+                                }
                             }
                         }
                     }
@@ -210,6 +284,18 @@ fun Step7DeviceBinding(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Un
                                                         deviceBound = true
                                                     )
                                                 )
+                                                // SDK 校验成功 → 上报后端 device_auth；成功才放行向导【完成】按钮
+                                                ServiceLocator.captureRepository
+                                                    .uploadDeviceAuth(sn, code)
+                                                    .onSuccess { onBackendSynced(true) }
+                                                    .onFailure {
+                                                        onBackendSynced(false)
+                                                        Toast.makeText(
+                                                            context,
+                                                            "设备信息同步失败，请检查网络后重新绑定设备",
+                                                            Toast.LENGTH_LONG
+                                                        ).show()
+                                                    }
                                             }
                                             is NetworkResult.Error -> {
                                                 bindError = result.message

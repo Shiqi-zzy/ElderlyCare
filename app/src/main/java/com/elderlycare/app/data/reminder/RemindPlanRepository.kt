@@ -122,8 +122,13 @@ class RemindPlanRepository(
                 }
             }
             // 本地有、设备没有（含 clockId 空脏行）→ 删除
+            // 医院端计划（source != 0）以本地为准：仅 App 本地提醒行 clockId 恒为空，
+            // 若随设备清删会导致复诊提醒丢失——跳过不参与设备覆盖式清理。
             val deviceClockIds = entities.map { it.clockId }.toSet()
             for (localPlan in local) {
+                if (localPlan.source != RemindPlanEntity.SOURCE_FAMILY) {
+                    continue
+                }
                 if (localPlan.clockId.isBlank() || localPlan.clockId !in deviceClockIds) {
                     Log.i(
                         TAG,
@@ -205,7 +210,8 @@ class RemindPlanRepository(
                     month = request.month,
                     day = request.day,
                     deviceSerial = deviceSerial,
-                    createTime = System.currentTimeMillis()
+                    createTime = System.currentTimeMillis(),
+                    source = draft.source
                 )
             )
             Log.i(TAG, "新增提醒计划成功: clockId=$clockId")
@@ -289,6 +295,77 @@ class RemindPlanRepository(
     suspend fun deleteLocalRecord(plan: RemindPlanEntity) {
         Log.i(TAG, "删除本地提醒计划记录（设备侧已不存在）: id=${plan.id} clockId=${plan.clockId}")
         planDao.delete(plan)
+    }
+
+    // ==================== 医院端复诊提醒（复用本仓库 + v3 clock 整套能力） ====================
+
+    /** 医院端计划列表（Flow，全部设备 source != 0，时间倒序） */
+    fun observeHospitalPlans(): Flow<List<RemindPlanEntity>> =
+        planDao.observeHospitalPlans()
+
+    /** 医院端计划一次性查询（App 启动时本地通知重调度用） */
+    suspend fun getAllHospitalPlans(): List<RemindPlanEntity> =
+        planDao.getAllHospitalPlans()
+
+    /**
+     * 医院端「仅 App 本地提醒」计划入库：**不调用萤石接口**，clockId 留空。
+     * 与设备下发的 addPlan 走同一张 remind_plan 表（家属端日程/留言 feed 同步展示），
+     * 靠 source 列区分来源；差分同步已跳过 source != 0 的行，本地提醒不会被设备覆盖清删。
+     *
+     * @return 本地行 id（本地通知调度与播报完成标记用）
+     */
+    suspend fun addLocalPlan(deviceSerial: String, draft: PlanDraft): Long {
+        val id = planDao.insert(
+            RemindPlanEntity(
+                clockId = "",
+                tag = draft.tag.ifBlank { "复诊提醒" },
+                content = draft.content,
+                timeHour = draft.timeHour,
+                timeMin = draft.timeMin,
+                repeatType = draft.repeatType,
+                weekdays = draft.weekdays.distinct().sorted().joinToString(","),
+                year = draft.year,
+                month = draft.month,
+                day = draft.day,
+                deviceSerial = deviceSerial,
+                createTime = System.currentTimeMillis(),
+                source = RemindPlanEntity.SOURCE_HOSPITAL_LOCAL
+            )
+        )
+        Log.i(TAG, "医院端本地提醒计划入库: id=$id tag=${draft.tag}（未下发设备）")
+        return id
+    }
+
+    /**
+     * 医院端已播报完成的设备播报计划 → 清理 RK3 侧残留闹铃（复用 v3 deleteClocks
+     * 临时闹铃清理机制，防设备残留）；本地行保留作为执行历史。
+     * 由 HospitalMedicalRemindViewModel 轮询调用（60s），与家属端删除计划互不影响。
+     *
+     * @return 成功清理的闹铃条数（失败静默，下一轮重试）
+     */
+    suspend fun cleanExecutedDeviceClocks(): Int {
+        val executed = planDao.getExecutedHospitalDevicePlans()
+        if (executed.isEmpty()) return 0
+        val token = ezvizRepository.obtainValidToken() ?: return 0
+        var cleaned = 0
+        // 按设备分组，一次 deleteClocks 请求清理同一设备的多条残留闹铃
+        executed.groupBy { it.deviceSerial }.forEach { (serial, plans) ->
+            if (serial.isBlank()) return@forEach
+            try {
+                val clockIds = plans.map { it.clockId }
+                val resp = reminderApi.deleteClocks(token, serial, clockIds)
+                if (resp.effectiveCode != 200) {
+                    Log.w(TAG, "清理复诊提醒残留闹铃失败: code=${resp.effectiveCode} msg=${resp.effectiveMsg}")
+                    return@forEach
+                }
+                cleaned += clockIds.size
+                Log.i(TAG, "复诊提醒残留闹铃已清理: deviceSerial=$serial clockIds=$clockIds")
+            } catch (e: Exception) {
+                // 清理轮询静默：失败打日志，下一轮重试
+                Log.w(TAG, "清理复诊提醒残留闹铃异常: deviceSerial=$serial", e)
+            }
+        }
+        return cleaned
     }
 
     // ==================== 播报完成轮询（系统消息联动） ====================
@@ -446,6 +523,9 @@ class RemindPlanRepository(
 /**
  * 表单草稿（不含音色——音色只用于试听，不传给萤石）。
  * weekdays 由表单按 repeatType 组装：单次=[日期对应星期]、每日=全 7 天、每周=用户多选。
+ *
+ * @param source 计划来源（医院端复诊提醒用）：0=家属端（默认，行为不变）、
+ * 1=医院端仅 App 本地提醒（不下发设备）、2=医院端下发设备播报。
  */
 data class PlanDraft(
     val tag: String,
@@ -456,5 +536,6 @@ data class PlanDraft(
     val weekdays: List<Int>,
     val year: Int = 0,
     val month: Int = 0,
-    val day: Int = 0
+    val day: Int = 0,
+    val source: Int = RemindPlanEntity.SOURCE_FAMILY
 )

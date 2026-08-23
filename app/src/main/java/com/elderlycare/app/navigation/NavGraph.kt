@@ -15,8 +15,11 @@ import com.elderlycare.app.data.model.UserRole
 import com.elderlycare.app.data.reminder.PreviewVoices
 import com.elderlycare.app.data.reminder.RemindTemplate
 import com.elderlycare.app.ui.ezviz.AlarmListScreen
+import com.elderlycare.app.ui.ezviz.AllCapturesScreen
 import com.elderlycare.app.ui.ezviz.LivePreviewScreen
 import com.elderlycare.app.ui.ezviz.PlaybackScreen
+import com.elderlycare.app.ui.ezviz.Rk3FmScreen
+import com.elderlycare.app.ui.ezviz.Rk3PlayScreen
 import com.elderlycare.app.ui.ezviz.VideoCallScreen
 import com.elderlycare.app.ui.family.AlertCenterScreen
 import com.elderlycare.app.ui.family.AuthorizationManagementScreen
@@ -26,6 +29,8 @@ import com.elderlycare.app.ui.login.CommunityLoginScreen
 import com.elderlycare.app.ui.login.FamilyLoginScreen
 import com.elderlycare.app.ui.login.HospitalLoginScreen
 import com.elderlycare.app.ui.login.PortalSelectionScreen
+import com.elderlycare.app.ui.message.ConversationScreen
+import com.elderlycare.app.ui.message.DeviceVideoPlayerScreen
 import com.elderlycare.app.ui.message.MessageScreen
 import com.elderlycare.app.ui.reminder.RemindPlanDetailScreen
 import com.elderlycare.app.ui.reminder.RemindPlanFormScreen
@@ -264,6 +269,47 @@ fun AppNavGraph() {
                 LivePreviewScreen(
                     deviceSerial = device.deviceSn,
                     verifyCode = device.deviceValidateCode,
+                    onBackClick = { navController.popBackStack() },
+                    onNavigateToPlay = { sn -> navController.navigate(Screen.Rk3Play.createRoute(sn)) },
+                    onNavigateToFm = { sn -> navController.navigate(Screen.Rk3Fm.createRoute(sn)) },
+                    onNavigateToVideoCall = {
+                        // 预览页「视频通话」：发起 ERTC 呼叫（闸门已校验设备，直接带 SN）
+                        navController.navigate(Screen.VideoCall.createRoute(device.deviceSn)) { launchSingleTop = true }
+                    },
+                    onNavigateToMessage = { navController.navigate(Screen.Message.route) }
+                )
+            }
+        }
+
+        // ===== 家属端 — RK3 点播（设备音频播放，网络层占位 + Mock 演示） =====
+        composable(
+            route = Screen.Rk3Play.route,
+            arguments = listOf(navArgument("deviceSerial") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val deviceSerial = backStackEntry.arguments?.getString("deviceSerial") ?: return@composable
+            DeviceAuthorizedGate(
+                deviceSerial = deviceSerial,
+                onBack = { navController.popBackStack() }
+            ) { device ->
+                Rk3PlayScreen(
+                    deviceSerial = device.deviceSn,
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+        }
+
+        // ===== 家属端 — RK3 广播FM（网络电台，网络层占位 + Mock 演示） =====
+        composable(
+            route = Screen.Rk3Fm.route,
+            arguments = listOf(navArgument("deviceSerial") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val deviceSerial = backStackEntry.arguments?.getString("deviceSerial") ?: return@composable
+            DeviceAuthorizedGate(
+                deviceSerial = deviceSerial,
+                onBack = { navController.popBackStack() }
+            ) { device ->
+                Rk3FmScreen(
+                    deviceSerial = device.deviceSn,
                     onBackClick = { navController.popBackStack() }
                 )
             }
@@ -303,11 +349,50 @@ fun AppNavGraph() {
             )
         }
 
+        // ===== 家属端 — 全部抓拍（手动抓拍 + 告警自动抓拍，取代旧告警中心为唯一入口） =====
+        composable(Screen.Captures.route) {
+            AllCapturesScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToRemindPlan = { navController.navigate(Screen.RemindPlanList.route) }
+            )
+        }
+
         // ===== 家属端 — 留言（音频收发模块） =====
         composable(Screen.Message.route) {
             MessageScreen(
                 onBack = { navController.popBackStack() },
-                onNavigateToRemindPlan = { navController.navigate(Screen.RemindPlanList.route) }
+                onNavigateToRemindPlan = { navController.navigate(Screen.RemindPlanList.route) },
+                onNavigateToDeviceVideo = { messageId ->
+                    navController.navigate(Screen.DeviceVideo.createRoute(messageId))
+                }
+            )
+        }
+
+        // ===== 家属端 — 设备视频留言播放 =====
+        // messageId 为本机 message 表主键（非设备串号），无需 DeviceAuthorizedGate
+        composable(
+            route = Screen.DeviceVideo.route,
+            arguments = listOf(navArgument("messageId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val messageId = backStackEntry.arguments?.getLong("messageId") ?: return@composable
+            DeviceVideoPlayerScreen(
+                messageId = messageId,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
+        // ===== 家属端 — 聊天对话页（消息中心会话列表点击进入；会话键即展示标题） =====
+        composable(
+            route = Screen.Conversation.route,
+            arguments = listOf(navArgument("senderName") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val senderName = backStackEntry.arguments?.getString("senderName") ?: return@composable
+            ConversationScreen(
+                conversationKey = senderName,
+                onBack = { navController.popBackStack() },
+                onOpenVideo = { messageId ->
+                    navController.navigate(Screen.DeviceVideo.createRoute(messageId))
+                }
             )
         }
 

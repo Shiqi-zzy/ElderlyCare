@@ -7,6 +7,7 @@ import android.os.Looper
 import android.util.Log
 import com.elderlycare.app.BuildConfig
 import com.elderlycare.app.config.EzvizConfig
+import com.videogo.exception.BaseException
 import com.videogo.openapi.EZConstants
 import com.videogo.openapi.EZOpenSDK
 import com.videogo.openapi.EZOpenSDKListener
@@ -101,6 +102,32 @@ class EzvizSdkManager {
             EZOpenSDK.getInstance().setAccessToken(token)
         } catch (e: Exception) {
             Log.e(TAG, "setAccessToken 失败", e)
+        }
+    }
+
+    // ==================== 云台控制 ====================
+
+    /**
+     * 云台控制（EZOpenSDK 5.28.4，javap 实证签名 controlPTZ(String,int,EZPTZCommand,EZPTZAction,int)）。
+     * START=开始转动（按住期间设备持续动作），STOP=停止（松开必须成对调用）。
+     * 返回 false = SDK 未初始化 / 设备不支持云台 / 调用异常（调用方 toast「云台操作失败」）。
+     */
+    suspend fun controlPtz(
+        deviceSerial: String,
+        channelNo: Int,
+        command: EZConstants.EZPTZCommand,
+        action: EZConstants.EZPTZAction,
+        speed: Int = EZConstants.PTZ_SPEED_DEFAULT
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (!initialized) return@withContext false
+        try {
+            EZOpenSDK.getInstance().controlPTZ(deviceSerial, channelNo, command, action, speed)
+        } catch (e: BaseException) {
+            Log.e(TAG, "云台控制失败 code=${e.errorCode}", e)
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "云台控制异常", e)
+            false
         }
     }
 

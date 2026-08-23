@@ -1,11 +1,15 @@
 package com.elderlycare.app.ui.ezviz
 
+import android.app.Application
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import android.view.SurfaceHolder
+import android.widget.Toast
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.elderlycare.app.data.ezviz.NetworkResult
 import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.data.ezviz.model.LiveStream
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class LivePreviewUiState(
     val deviceSerial: String = "",
@@ -26,12 +31,17 @@ data class LivePreviewUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val verifyCode: String = "",
-    val showCodeInput: Boolean = true
+    val showCodeInput: Boolean = true,
+    /** 手机本地录制（EZOpenSDK 隐藏会话）是否进行中 */
+    val isRecording: Boolean = false,
+    /** 手动云端抓拍请求进行中（防连点；同设备 4s 限流由后端保证） */
+    val isCapturing: Boolean = false
 )
 
-class LivePreviewViewModel : ViewModel() {
+class LivePreviewViewModel(application: Application) : AndroidViewModel(application) {
 
     private val TAG = "LivePreviewViewModel"
+    private val appContext = application.applicationContext
     private val repo = ServiceLocator.repository
 
     private val _uiState = MutableStateFlow(LivePreviewUiState())
@@ -40,9 +50,35 @@ class LivePreviewViewModel : ViewModel() {
     private var currentStream: LiveStream? = null
     private var addressRefreshJob: Job? = null
 
+    /** 隐藏录制会话（1x1 SurfaceView 的解码 surface 由页面回传） */
+    private var recordSession: LocalMediaCapture.RecordSession? = null
+    private var recordSurfaceHolder: SurfaceHolder? = null
+    /** 录制会话创建中（防连点重复建会话；点击停止可打断） */
+    private var recordStarting = false
+
+    init {
+        // 预览断开（取流错误/流地址丢失）时若在录制，自动停止防止文件损坏
+        viewModelScope.launch {
+            _uiState.collect { state ->
+                val lost = state.playerState is PlayerState.Error ||
+                    (state.streamUrl == null && !state.isLoading)
+                if (state.isRecording && lost) {
+                    Log.i(TAG, "预览断开，自动停止本地录制")
+                    stopRecording(auto = true)
+                }
+            }
+        }
+    }
+
     fun initialize(deviceSerial: String, verifyCode: String) {
         _uiState.update {
             it.copy(deviceSerial = deviceSerial, verifyCode = verifyCode)
+        }
+        // 幂等补传设备验证码（device_auth 兜底同步第二触发点；upsert 可重复调用）
+        if (verifyCode.length == 6) {
+            viewModelScope.launch {
+                ServiceLocator.captureRepository.uploadDeviceAuth(deviceSerial, verifyCode)
+            }
         }
         startPlay()
     }
@@ -175,5 +211,150 @@ class LivePreviewViewModel : ViewModel() {
 
     fun retry() {
         startPlay()
+    }
+
+    // ==================== 手动云端抓拍 / 手机本地录制 ====================
+
+    /** 预览是否已成功连接（抓拍/录制按钮的可用判定；H5 路径取流即视为连接） */
+    private fun isPreviewReady(): Boolean {
+        val s = _uiState.value
+        return s.streamUrl != null && !s.isLoading && s.error == null &&
+            (s.useWebView || s.playerState == PlayerState.Playing)
+    }
+
+    /** 隐藏录制会话的解码 surface（页面 SurfaceView 回调） */
+    fun onRecordSurfaceReady(holder: SurfaceHolder?) {
+        recordSurfaceHolder = holder
+        if (holder == null) {
+            // surface 销毁时若在录制，自动停止（页面销毁边界）
+            if (_uiState.value.isRecording) stopRecording(auto = true)
+        }
+    }
+
+    /**
+     * 抓拍（手动云端抓拍，替换 Phase 3 本地 capturePicture）：
+     * App → 后端 → 萤石 device/capture → 后端下载落盘 alarm_events(manual) →
+     * 回传 App 下载存相册 + toast「截图已保存」。同设备 4s 限流由后端保证，
+     * App 侧 isCapturing 防连点。⚠️ 禁止播放器截屏（capturePicture/captureCamera）。
+     */
+    fun captureSnapshot() {
+        val state = _uiState.value
+        if (!isPreviewReady()) {
+            toast("请等待视频流连接成功")
+            return
+        }
+        if (state.isCapturing) {
+            toast("操作进行中，请稍后再试")
+            return
+        }
+        _uiState.update { it.copy(isCapturing = true) }
+        viewModelScope.launch {
+            val result = ServiceLocator.captureRepository.capture(state.deviceSerial)
+            result.onSuccess { toast(it) } // 「截图已保存」
+            result.onFailure { e -> toast(e.message ?: "抓拍失败，请重试") }
+            _uiState.update { it.copy(isCapturing = false) }
+        }
+    }
+
+    /** 录制按钮点击：未录制 → 开始；录制中 → 停止 */
+    fun toggleRecord() {
+        if (_uiState.value.isRecording) {
+            stopRecording(auto = false)
+        } else {
+            startRecording()
+        }
+    }
+
+    private fun startRecording() {
+        val state = _uiState.value
+        if (state.isRecording || recordStarting) return
+        if (!isPreviewReady()) {
+            toast("请等待视频流连接成功")
+            return
+        }
+        val holder = recordSurfaceHolder
+        if (holder == null) {
+            toast("请等待视频流连接成功")
+            return
+        }
+        // 先建会话对象并登记（点击停止可打断创建流程），SDK 调用异步发起
+        val session = LocalMediaCapture.RecordSession(appContext)
+        recordSession = session
+        recordStarting = true
+        viewModelScope.launch(Dispatchers.IO) {
+            // 录制会话走 SDK 内部 REST 取流：先刷新 SDK accessToken 防过期
+            val token = runCatching { repo.obtainValidToken() }.getOrNull()
+            ServiceLocator.sdkManager.updateToken(token)
+            withContext(Dispatchers.Main) {
+                val started = session.start(
+                    deviceSerial = state.deviceSerial,
+                    channelNo = state.channelNo,
+                    verifyCode = state.verifyCode,
+                    holder = holder,
+                    listener = object : LocalMediaCapture.RecordSession.Listener {
+                        override fun onRecordStarted() {
+                            recordStarting = false
+                            _uiState.update { it.copy(isRecording = true) }
+                        }
+
+                        override fun onRecordFailed(friendlyMessage: String) {
+                            recordStarting = false
+                            recordSession = null
+                            _uiState.update { it.copy(isRecording = false) }
+                            toast(friendlyMessage)
+                        }
+                    }
+                )
+                if (!started) {
+                    // 会话被停止打断或创建失败
+                    recordStarting = false
+                    if (recordSession === session) recordSession = null
+                    _uiState.update { it.copy(isRecording = false) }
+                    if (!session.isReleased()) toast("录制启动失败，请重试")
+                }
+            }
+        }
+    }
+
+    /**
+     * 停止录制并落库相册。
+     * @param auto true = 预览断开/页面销毁的自动停止（静默保存，不弹 toast）
+     */
+    fun stopRecording(auto: Boolean) {
+        recordStarting = false
+        val session = recordSession ?: return
+        recordSession = null
+        val wasRecording = _uiState.value.isRecording
+        _uiState.update { it.copy(isRecording = false) }
+        viewModelScope.launch(Dispatchers.IO) {
+            val saved = runCatching { session.stop() }.getOrElse {
+                Log.e(TAG, "停止录制异常", it)
+                null
+            }
+            if (auto) return@launch // 自动停止静默保存，不打扰用户
+            withContext(Dispatchers.Main) {
+                if (saved != null) toast("录像已保存")
+                else if (wasRecording) toast("录制已停止")
+            }
+        }
+    }
+
+    /** H5 播放器报错（预览断开）→ 录制中则自动停止 */
+    fun notifyPreviewDisconnected() {
+        Log.i(TAG, "H5 播放器报告错误，检查录制会话")
+        if (_uiState.value.isRecording) stopRecording(auto = true)
+    }
+
+    private fun toast(msg: String) {
+        Toast.makeText(appContext, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // 页面销毁兜底：正在录制必须停止会话，防止文件损坏
+        recordSession?.let {
+            runCatching { it.stop() }
+        }
+        recordSession = null
     }
 }

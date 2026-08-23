@@ -196,6 +196,7 @@ class EzvizRepository(
      * 查询设备语音对讲能力「原始值」（留言模块云广播能力判断用）。
      * 萤石文档：support_talk 取值为 1 或 3 时设备才支持语音对讲/云广播，
      * 这里返回原始值由调用方判断，避免与 getDeviceInfo 的布尔转换混用。
+     * 字段缺失（空对象）按 0 处理——历史行为，双通道路径用。
      */
     suspend fun getDeviceSupportTalkRaw(deviceSerial: String): NetworkResult<Int> {
         val token = getOrRefreshToken()
@@ -204,7 +205,25 @@ class EzvizRepository(
         val result = apiCall {
             api.getDeviceCapacity(accessToken = token, deviceSerial = deviceSerial)
         }
-        return result.map { it.supportTalk.toIntOrNull() ?: 0 }
+        return result.map { it.supportTalk?.toIntOrNull() ?: 0 }
+    }
+
+    /**
+     * 查询设备语音对讲能力「显式值」（sendonce 离线留言前置校验用）。
+     *
+     * 与 [getDeviceSupportTalkRaw] 的区别：保留「字段缺失」信息——
+     * - 返回 Success(0)：capacity 正常返回且 support_talk 明确为 "0"，设备不支持对讲，应拦截；
+     * - 返回 Success(null)：RK3 空对象（固件适配缺陷，HTTP200 但无 support_talk 字段）或
+     *   非数字字符串，按规则放行尝试发送（真实结果以 sendonce 接口返回为准）。
+     */
+    suspend fun getDeviceSupportTalkExplicit(deviceSerial: String): NetworkResult<Int?> {
+        val token = getOrRefreshToken()
+            ?: return NetworkResult.Error(message = "未登录或 Token 已过期，请重试")
+
+        val result = apiCall {
+            api.getDeviceCapacity(accessToken = token, deviceSerial = deviceSerial)
+        }
+        return result.map { it.supportTalk?.toIntOrNull() }
     }
 
     // ==================== 直播 ====================

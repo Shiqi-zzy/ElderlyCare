@@ -40,6 +40,9 @@ class EZCloudBroadcastManager(
         /** 云广播音频上限：5M */
         private const val MAX_FILE_BYTES = 5L * 1024 * 1024
 
+        /** sendonce 临时语音下发文件上限：20M */
+        private const val MAX_SENDONCE_BYTES = 20L * 1024 * 1024
+
         /** voiceName 长度上限 */
         private const val MAX_VOICE_NAME_LEN = 50
     }
@@ -190,5 +193,61 @@ class EZCloudBroadcastManager(
         when (val result = talkCapabilityProvider(deviceSerial)) {
             is NetworkResult.Success -> NetworkResult.Success(result.data == 1 || result.data == 3)
             is NetworkResult.Error -> result
+        }
+
+    /**
+     * 临时语音下发（sendonce）——本地文件一步上传并直接下发设备一次性播放。
+     *
+     * 与 [uploadVoiceFile]+[sendVoiceToDevice] 两步流程的区别：不入云广播语音库、
+     * 不消耗语音库配额，适用于「手机录音 → 设备立即播放一次」的离线留言场景。
+     *
+     * 前置校验文件存在性/非空/20M 上限（格式校验见 SendOnceAudioValidator，由
+     * Repository 层在调用前完成）；token 走 tokenProvider 自动刷新链路。
+     *
+     * @return Success(data) 为萤石返回的消息 id（可能为 null，待实测）；失败返回 Error
+     */
+    suspend fun sendOnceToDevice(deviceSerial: String, file: File): NetworkResult<String?> =
+        withContext(Dispatchers.IO) {
+            val token = tokenProvider()
+                ?: return@withContext NetworkResult.Error(message = "未登录或 Token 已过期，请重试")
+            if (!file.exists() || file.length() == 0L) {
+                return@withContext NetworkResult.Error(message = "音频文件不存在")
+            }
+            if (file.length() > MAX_SENDONCE_BYTES) {
+                return@withContext NetworkResult.Error(message = "音频超过 20M 上限")
+            }
+            try {
+                val mime = when (file.extension.lowercase()) {
+                    "wav" -> "audio/wav"
+                    "mp3" -> "audio/mpeg"
+                    "aac" -> "audio/aac"
+                    else -> "application/octet-stream"
+                }
+                val response = api.sendVoiceOnce(
+                    accessToken = token.toRequestBody("text/plain".toMediaType()),
+                    deviceSerial = deviceSerial.toRequestBody("text/plain".toMediaType()),
+                    voiceFile = MultipartBody.Part.createFormData(
+                        "voiceFile",
+                        file.name,
+                        file.asRequestBody(mime.toMediaType())
+                    )
+                )
+                val body = response.body()
+                if (response.isSuccessful && body != null && body.code == "200") {
+                    NetworkResult.Success(body.data?.msgId)
+                } else {
+                    NetworkResult.Error(
+                        code = body?.code ?: response.code().toString(),
+                        message = body?.msg?.takeIf { it.isNotBlank() } ?: "语音下发失败"
+                    )
+                }
+            } catch (e: java.net.UnknownHostException) {
+                NetworkResult.Error(message = "网络连接失败，请检查网络", throwable = e)
+            } catch (e: java.net.SocketTimeoutException) {
+                NetworkResult.Error(message = "请求超时，请稍后重试", throwable = e)
+            } catch (e: Exception) {
+                Log.e(TAG, "临时语音下发异常", e)
+                NetworkResult.Error(message = e.message ?: "语音下发失败", throwable = e)
+            }
         }
 }

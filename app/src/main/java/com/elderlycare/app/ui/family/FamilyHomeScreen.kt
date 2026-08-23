@@ -1,5 +1,6 @@
 package com.elderlycare.app.ui.family
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -8,48 +9,74 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.elderlycare.app.R
 import com.elderlycare.app.data.binding.BindingRepository
+import com.elderlycare.app.data.ezviz.NetworkResult
+import com.elderlycare.app.data.ezviz.RtcSignalingManager
 import com.elderlycare.app.data.ezviz.ServiceLocator
-import com.elderlycare.app.data.model.ElderlyProfile
-import com.elderlycare.app.ui.components.RiskLevel
-import com.elderlycare.app.ui.components.StatusBadge
-import com.elderlycare.app.ui.theme.*
-import com.elderlycare.app.util.BMICalculator
+import com.elderlycare.app.data.ezviz.model.Device
+import com.elderlycare.app.data.ezviz.model.DeviceStatus
+import com.elderlycare.app.data.message.MessageEntity
+import com.elderlycare.app.ui.theme.TextHint
+import com.elderlycare.app.ui.theme.TextPrimary
 import kotlinx.coroutines.flow.flowOf
 
+// ==================== 图四首页设计色值（页面局部常量，不改全局主题） ====================
+private val HomeBg = Color(0xFFF7F9FC)
+private val FuncBlue = Color(0xFF4086E8)
+private val FuncGreen = Color(0xFF42BD67)
+private val FuncOrange = Color(0xFFFF9F38)
+private val FuncPurple = Color(0xFF9068D8)
+private val FuncLightBlue = Color(0xFF7BB3F5)
+private val FuncLightGreen = Color(0xFF9BDCA8)
+private val FuncLightOrange = Color(0xFFFFBE7E)
+private val FuncLightRed = Color(0xFFF59B9B)
+private val BadgeRed = Color(0xFFF24848)
+private val OnlineGreen = Color(0xFF4CAF50)
+private val OfflineGray = Color(0xFFBDBDBD)
+private val ThumbPlaceholderBrush = androidx.compose.ui.graphics.Brush.verticalGradient(
+    listOf(Color(0xFF3D5A73), Color(0xFF2C3E50))
+)
+
+/**
+ * 家属首页（Phase 3 UI 重设计，图四原型 A）。
+ *
+ * 功能网格固定 2 行 4 列：
+ * 第一行：抓拍（跳全部抓拍页，不直接触发抓拍）/ 视频通话（ERTC）/ 对讲（进入预览页）/ 录像（SD 录像回放列表）
+ * 第二行：留言 / 录音（快速进留言）/ 点播（RK3 点播）/ 广播（云广播 FM）。
+ * 「告警消息」快捷入口已彻底移除：抓拍图片/自动抓拍快照统一在【全部抓拍】页查看，
+ * 告警文字通知进消息 Tab（底部铃铛角标）；首页「抓拍」图标保留后端抓拍未读角标（与消息 Tab 互不干扰）。
+ * 图标素材统一走 res/drawable（英文命名），禁止引用 C 盘绝对路径。
+ * 数据全部来自真实业务流，禁止 Mock。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FamilyHomeScreen(
-    onNavigateToProfile: () -> Unit,
-    onNavigateToReport: () -> Unit,
-    onNavigateToCalendar: () -> Unit,
+    onOpenCaptures: () -> Unit,
     onNavigateToVideo: () -> Unit,
-    onNavigateToEmergencyCall: () -> Unit,
-    onNavigateToAlertCenter: () -> Unit,
+    onNavigateToVideoCall: () -> Unit,
     onNavigateToMessage: () -> Unit,
-    onNavigateToAuthorizationMgmt: () -> Unit,
-    onLogout: () -> Unit = {}
+    onNavigateToRk3Play: () -> Unit,
+    onNavigateToPlayback: () -> Unit,
+    onNavigateToBroadcast: () -> Unit,
+    onOpenMessagesTab: () -> Unit
 ) {
-    // 档案来自本地持久化（Wizard 提交时经 ElderlyProfileStore 落盘，按当前登录家属 userId 读取）
-    var profile by remember { mutableStateOf<ElderlyProfile?>(null) }
-    LaunchedEffect(Unit) {
-        val uid = ServiceLocator.userStore.getCurrentUserId() ?: ""
-        profile = ServiceLocator.profileStore.getPrimaryProfile(uid)
-    }
-    val currentProfile = profile ?: ElderlyProfile()
     // 已绑定设备（响应式）：读 BindingRepository 授权链路（档案 deviceSn），不读 DeviceBindingStore 缓存
     var boundDevice by remember { mutableStateOf<BindingRepository.AccessibleDevice?>(null) }
     LaunchedEffect(Unit) {
@@ -57,289 +84,255 @@ fun FamilyHomeScreen(
     }
     val deviceSn = boundDevice?.deviceSn
 
-    // 留言未读数（未绑定设备时恒为 0，隐藏角标）
-    val unreadCount by remember(deviceSn) {
+    // 未读数（未绑定设备时恒为 0，隐藏角标）：铃铛=全部合计、留言=分类1；
+    // 抓拍图标角标=后端 alarm_events 未读数（与消息 Tab Room 角标互不干扰）
+    val totalUnread by remember(deviceSn) {
+        deviceSn?.let { ServiceLocator.messageRepository.observeUnreadCount(it) } ?: flowOf(0)
+    }.collectAsStateWithLifecycle(initialValue = 0)
+    val leaveUnread by remember(deviceSn) {
         deviceSn?.let {
-            ServiceLocator.messageRepository.observeUnreadCount(it)
+            ServiceLocator.messageRepository.observeUnreadCountByCategory(it, MessageEntity.MESSAGE_CATEGORY_LEAVE_MSG)
         } ?: flowOf(0)
     }.collectAsStateWithLifecycle(initialValue = 0)
+    // 后端抓拍未读数：进页拉取 + WS 新告警/图片就绪（captureFeed）实时重拉
+    var captureUnread by remember { mutableIntStateOf(0) }
+    LaunchedEffect(deviceSn) {
+        val sn = deviceSn
+        if (sn == null) {
+            captureUnread = 0
+            return@LaunchedEffect
+        }
+        ServiceLocator.captureRepository.fetchUnreadCount(sn)
+            .onSuccess { captureUnread = it }
+        RtcSignalingManager.captureFeed.collect {
+            ServiceLocator.captureRepository.fetchUnreadCount(sn)
+                .onSuccess { captureUnread = it }
+        }
+    }
 
     Scaffold(
+        containerColor = HomeBg,
         topBar = {
             TopAppBar(
-                title = { Text("${currentProfile.name.ifBlank { "老人" }}的看护助手", fontWeight = FontWeight.SemiBold) },
+                title = { Text("萤石养老看护", fontWeight = FontWeight.SemiBold) },
                 actions = {
-                    IconButton(onClick = onLogout) { Icon(Icons.Filled.Logout, contentDescription = "退出登录") }
+                    Box {
+                        IconButton(onClick = onOpenMessagesTab) {
+                            Icon(Icons.Filled.Notifications, contentDescription = "消息通知")
+                        }
+                        if (totalUnread > 0) {
+                            Badge(
+                                containerColor = BadgeRed,
+                                contentColor = Color.White,
+                                modifier = Modifier.align(Alignment.TopEnd)
+                            ) {
+                                Text(
+                                    if (totalUnread > 99) "99+" else "$totalUnread",
+                                    style = MaterialTheme.typography.labelSmall
+                                )
+                            }
+                        }
+                    }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = HomeBg)
             )
         }
     ) { paddingValues ->
         Column(
-            modifier = Modifier.fillMaxSize().padding(paddingValues).verticalScroll(rememberScrollState()).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // 1. 实时视频
-            VideoPreviewCard(
-                deviceSerial = deviceSn,
-                onClick = onNavigateToVideo
-            )
+            BannerCard()
 
-            // 2. 用户状态卡片
-            ElderlyStatusCard(profile = currentProfile, onEmergencyCall = onNavigateToEmergencyCall)
+            // 我的设备
+            Text("我的设备", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+            MyDeviceCard(deviceSn = deviceSn, onClick = onNavigateToVideo)
 
-            // 3. 告警中心摘要
-            AlertSummaryCard(onClick = onNavigateToAlertCenter)
-
-            // 4. 留言入口（未读角标）
-            MessageSummaryCard(unreadCount = unreadCount, onClick = onNavigateToMessage)
-
-            // 5. 机构授权管理摘要
-            AuthorizationSummaryCard(onClick = onNavigateToAuthorizationMgmt)
-
-            // 6. 档案摘要
-            ProfileSummaryCard(profile = currentProfile, onClick = onNavigateToProfile)
-
-            // 7. 情绪倾向报告
-            ReportSummaryCard(onClick = onNavigateToReport)
-
-            // 8. 今日日程
-            TodayScheduleCard(onClick = onNavigateToCalendar)
-        }
-    }
-}
-
-@Composable
-private fun ElderlyStatusCard(profile: ElderlyProfile, onEmergencyCall: () -> Unit) {
-    Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-        Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(24.dp), color = Primary.copy(alpha = 0.1f), modifier = Modifier.size(48.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(profile.name.firstOrNull()?.toString() ?: "老", fontWeight = FontWeight.Bold, color = Primary)
-                }
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(profile.name.ifBlank { "未录入姓名" }, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    StatusBadge(text = "在线", color = StatusGreen)
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("RK3 摄像头: 开启", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
-                    Switch(checked = true, onCheckedChange = {}, modifier = Modifier.height(20.dp))
-                }
-            }
-            Button(onClick = onEmergencyCall, shape = RoundedCornerShape(20.dp), colors = ButtonDefaults.buttonColors(containerColor = Error), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
-                Icon(Icons.Filled.Phone, null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("紧急通话", style = MaterialTheme.typography.labelMedium)
-            }
-        }
-    }
-}
-
-@Composable
-private fun AlertSummaryCard(onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("异常告警中心", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = onClick, contentPadding = PaddingValues(0.dp)) { Text("查看全部", color = Primary) }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            AlertItem("跌倒检测", "15:30 客厅区域疑似跌倒", RiskLevel.RISK)
-            AlertItem("久坐不动", "12:00 连续久坐超过4小时", RiskLevel.ATTENTION)
-            AlertItem("设备离线", "08:00 RK3设备离线5分钟", RiskLevel.NORMAL)
-        }
-    }
-}
-
-/** 留言入口卡片（带未读角标，数据来自留言 Room 未读数） */
-@Composable
-private fun MessageSummaryCard(unreadCount: Int, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(12.dp), color = Primary.copy(alpha = 0.1f), modifier = Modifier.size(44.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Filled.RecordVoiceOver, null, tint = Primary, modifier = Modifier.size(24.dp))
-                }
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.message_title), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
-                    if (unreadCount > 0) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(shape = RoundedCornerShape(10.dp), color = StatusRed) {
-                            Text("$unreadCount", color = Color.White, style = MaterialTheme.typography.labelSmall, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))
-                        }
-                    }
-                }
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(stringResource(R.string.message_home_subtitle), style = MaterialTheme.typography.labelMedium, color = TextSecondary)
-            }
-            Icon(Icons.Filled.KeyboardArrowRight, null, tint = TextHint)
-        }
-    }
-}
-
-@Composable
-private fun AlertItem(type: String, desc: String, level: RiskLevel) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(level.color))
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) { Text(type, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium); Text(desc, style = MaterialTheme.typography.labelSmall, color = TextSecondary) }
-        StatusBadge(text = level.label, color = level.color)
-    }
-}
-
-@Composable
-private fun AuthorizationSummaryCard(onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("机构授权管理", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = onClick, contentPadding = PaddingValues(0.dp)) { Text("管理授权", color = Primary) }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Surface(shape = RoundedCornerShape(10.dp), color = Primary.copy(alpha = 0.06f), modifier = Modifier.fillMaxWidth()) {
-                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) { Text("幸福社区养老驿站", style = MaterialTheme.typography.bodyMedium); Text("有效期至 2024-12-31", style = MaterialTheme.typography.labelSmall, color = TextHint) }
-                    StatusBadge(text = "生效中", color = StatusGreen)
-                }
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Surface(shape = RoundedCornerShape(10.dp), color = Secondary.copy(alpha = 0.06f), modifier = Modifier.fillMaxWidth()) {
-                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) { Text("新华社区医院", style = MaterialTheme.typography.bodyMedium); Text("有效期至 2024-09-15", style = MaterialTheme.typography.labelSmall, color = TextHint) }
-                    StatusBadge(text = "生效中", color = StatusGreen)
-                }
-            }
-        }
-    }
-}
-
-// --- 以下为原 HomeScreen 的卡片（保留不变）---
-
-@Composable
-private fun VideoPreviewCard(deviceSerial: String?, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-        Column {
-            Box(modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)).background(Brush.verticalGradient(listOf(Color(0xFF3D5A73), Color(0xFF2C3E50)))), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.Videocam, null, tint = Color.White.copy(alpha = 0.7f), modifier = Modifier.size(48.dp))
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    if (deviceSerial != null) "RK3 实时画面 · $deviceSerial" else "未绑定 RK3 设备",
-                    color = Color.White.copy(alpha = 0.7f)
+            // 第一行功能（固定 2×4 网格）：抓拍 / 视频通话 / 对讲 / 录像（统一 Material 矢量图标）
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                HomeFuncIcon(
+                    icon = Icons.Filled.CameraAlt, label = "抓拍",
+                    bgColor = FuncBlue, badgeCount = captureUnread, onClick = onOpenCaptures
                 )
-                Row(modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)) {
-                    StatusBadge(text = if (deviceSerial != null) "已绑定" else "未绑定", color = if (deviceSerial != null) StatusGreen else StatusYellow)
-                }
+                HomeFuncIcon(
+                    icon = Icons.Filled.VideoCall, label = "视频通话",
+                    bgColor = FuncGreen, onClick = onNavigateToVideoCall
+                )
+                HomeFuncIcon(
+                    icon = Icons.Filled.VolumeUp, label = "对讲",
+                    bgColor = FuncOrange, onClick = onNavigateToVideo
+                )
+                HomeFuncIcon(
+                    icon = Icons.Filled.Videocam, label = "录像",
+                    bgColor = FuncPurple, onClick = onNavigateToPlayback
+                )
             }
-            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("实时视频", fontWeight = FontWeight.Medium, style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = onClick) { Text(if (deviceSerial != null) "查看实时画面" else "请在档案录入中绑定", color = Primary); Icon(Icons.Filled.KeyboardArrowRight, null, tint = Primary, modifier = Modifier.size(18.dp)) }
+
+            // 第二行功能：留言 / 录音 / 点播 / 广播
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                HomeFuncIcon(
+                    icon = Icons.Filled.Message, label = "留言",
+                    bgColor = FuncLightBlue, badgeCount = leaveUnread, onClick = onNavigateToMessage
+                )
+                HomeFuncIcon(
+                    icon = Icons.Filled.Mic, label = "录音",
+                    bgColor = FuncLightGreen, onClick = onNavigateToMessage
+                )
+                HomeFuncIcon(
+                    icon = Icons.Filled.PlayArrow, label = "点播",
+                    bgColor = FuncLightOrange, onClick = onNavigateToRk3Play
+                )
+                HomeFuncIcon(
+                    icon = Icons.Filled.Campaign, label = "广播",
+                    bgColor = FuncLightRed, onClick = onNavigateToBroadcast
+                )
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
 
+/** 顶部品牌 Banner：bg_home_top 全宽背景 + 右侧老人居家插画（illust_oldman_home） */
 @Composable
-private fun ProfileSummaryCard(profile: ElderlyProfile, onClick: () -> Unit) {
-    // BMI 由档案身高体重实算（未录入时为 0，显示「未录入」）
-    val height = profile.height.toFloatOrNull() ?: 0f
-    val weight = profile.weight.toFloatOrNull() ?: 0f
-    val bmi = BMICalculator.calculate(weight, height)
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(24.dp), color = Primary.copy(alpha = 0.1f), modifier = Modifier.size(56.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(profile.name.firstOrNull()?.toString() ?: "老", fontWeight = FontWeight.Bold, color = Primary, style = MaterialTheme.typography.titleLarge)
-                }
+private fun BannerCard() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(150.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color.White)
+    ) {
+        Image(
+            painter = painterResource(R.drawable.bg_home_top),
+            contentDescription = "首页顶部品牌",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.FillBounds
+        )
+        Image(
+            painter = painterResource(R.drawable.illust_oldman_home),
+            contentDescription = "老人居家插画",
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 10.dp)
+                .height(134.dp),
+            contentScale = ContentScale.Fit
+        )
+    }
+}
+
+/**
+ * 我的设备卡片：设备名（getDeviceInfo 云端真实数据，失败兜底 SN）+ 绿色在线点 +
+ * 缩略图（Coil 加载 deviceCover，无则渐变占位）；
+ * 整卡点击跳播放器。中间不再渲染圆形视频占位图标。
+ */
+@Composable
+private fun MyDeviceCard(deviceSn: String?, onClick: () -> Unit) {
+    var device by remember(deviceSn) { mutableStateOf<Device?>(null) }
+    LaunchedEffect(deviceSn) {
+        device = deviceSn?.let { sn ->
+            when (val result = ServiceLocator.repository.getDeviceInfo(sn)) {
+                is NetworkResult.Success -> result.data
+                else -> null
             }
-            Spacer(modifier = Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Row {
-                    Text(
-                        buildString {
-                            append(profile.name.ifBlank { "未录入姓名" })
-                            append(" · ${profile.gender.label}")
-                            if (profile.age.isNotBlank()) append(" · ${profile.age}岁")
-                        },
-                        fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.titleMedium
+        }
+    }
+    val displayName = device?.deviceName?.takeIf { it.isNotBlank() } ?: deviceSn ?: "未绑定 RK3 设备"
+    val online = device?.status == DeviceStatus.ONLINE
+
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.size(8.dp).clip(CircleShape)
+                        .background(if (online) OnlineGreen else OfflineGray)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    displayName,
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = TextHint)
+            }
+            // 缩略预览图：渐变占位为底，云端 cover 加载成功后覆盖其上；无中央占位图标
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+                    .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
+                    .background(ThumbPlaceholderBrush),
+                contentAlignment = Alignment.Center
+            ) {
+                device?.deviceCover?.takeIf { it.isNotBlank() }?.let { cover ->
+                    AsyncImage(
+                        model = cover,
+                        contentDescription = "设备画面",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(
-                        if (bmi > 0f) "BMI $bmi" else "BMI 未录入",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary
-                    )
-                    Text(
-                        if (profile.bloodPressureHigh.isNotBlank() || profile.bloodPressureLow.isNotBlank()) {
-                            "血压 ${profile.bloodPressureHigh.ifBlank { "-" }}/${profile.bloodPressureLow.ifBlank { "-" }}"
-                        } else {
-                            "血压 未录入"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextSecondary
+            }
+        }
+    }
+}
+
+/** 方形圆角色块功能图标 + 文字标签 + 可选右上角未读角标（统一 Material 矢量图标，白色 24dp 居中，不撑满按钮） */
+@Composable
+private fun HomeFuncIcon(
+    icon: ImageVector,
+    label: String,
+    bgColor: Color,
+    badgeCount: Int = 0,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Box {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = bgColor,
+                modifier = Modifier.size(56.dp)
+            ) {
+                // 图标居中，四周保留内边距，白色统一风格
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(8.dp)) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = label,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
-            Icon(Icons.Filled.KeyboardArrowRight, null, tint = TextHint)
-        }
-    }
-}
-
-@Composable
-private fun ReportSummaryCard(onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Row(verticalAlignment = Alignment.CenterVertically) { Text("最新情绪倾向报告", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium); Spacer(modifier = Modifier.width(8.dp)); StatusBadge(text = "关注", color = StatusYellow) }
-                Text("7月10日", style = MaterialTheme.typography.bodyMedium, color = TextHint)
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                MetricItem("孤独指数", "38", "正常", StatusGreen)
-                MetricItem("抑郁倾向", "42", "轻微上升", StatusYellow)
-                MetricItem("活跃度", "65", "正常", StatusGreen)
+            if (badgeCount > 0) {
+                Badge(
+                    containerColor = BadgeRed,
+                    contentColor = Color.White,
+                    modifier = Modifier.align(Alignment.TopEnd)
+                ) {
+                    Text(
+                        if (badgeCount > 99) "99+" else "$badgeCount",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun MetricItem(label: String, value: String, status: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineSmall)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
-        Text(status, style = MaterialTheme.typography.labelSmall, color = color)
-    }
-}
-
-@Composable
-private fun TodayScheduleCard(onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("今日日程", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium); Text("3项", style = MaterialTheme.typography.bodyMedium, color = TextSecondary) }
-            Spacer(modifier = Modifier.height(10.dp))
-            ScheduleItem("8:00 服用降压药", completed = true)
-            ScheduleItem("14:00 社区医院复诊", completed = false)
-            ScheduleItem("19:00 正念呼吸练习", completed = false)
-        }
-    }
-}
-
-@Composable
-private fun ScheduleItem(text: String, completed: Boolean) {
-    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f), color = if (completed) TextHint else TextPrimary)
-        if (completed) Icon(Icons.Filled.CheckCircle, null, tint = StatusGreen, modifier = Modifier.size(20.dp))
-        else Surface(shape = RoundedCornerShape(12.dp), color = Primary.copy(alpha = 0.1f)) { Text("待办", modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = Primary) }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(label, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
     }
 }

@@ -2,5 +2,7 @@
 <resources>
     <style name="Theme.ElderlyCare" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:statusBarColor">@color/primary</item>
+        <!-- 启动页主视觉：白底 + 居中 splash_main（splash_bg.xml layer-list） -->
+        <item name="android:windowBackground">@drawable/splash_bg</item>
     </style>
 </resources>
