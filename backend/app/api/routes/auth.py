@@ -24,7 +24,7 @@ async def send_code(req: SendCodeRequest):
 @router.post("/login", response_model=SyncResponse)
 async def login(req: LoginRequest):
     """手机验证码登录：验证码校验 → 查找/创建用户 → 返回 JWT"""
-    if not req.role or req.role not in ("family", "community", "hospital"):
+    if not req.role or req.role not in ("family", "community", "hospital", "admin"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效角色")
 
     result = AuthService.login_with_phone(req.phone, req.code, req.role)
@@ -64,7 +64,7 @@ async def sync(req: SyncRequest):
 @router.post("/select-role", response_model=SyncResponse)
 async def select_role(req: SelectRoleRequest):
     """新用户选择角色"""
-    if not req.role or req.role not in ("family", "community", "hospital"):
+    if not req.role or req.role not in ("family", "community", "hospital", "admin"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效角色")
 
     result = AuthService.select_role(req)

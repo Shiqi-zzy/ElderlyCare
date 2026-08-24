@@ -20,13 +20,13 @@ class LoginRequest(BaseModel):
     """手机验证码登录"""
     phone: str = Field(..., min_length=11, max_length=11, pattern=r"^\d{11}$")
     code: str = Field(..., min_length=4, max_length=6)
-    role: str = Field(..., pattern="^(family|community|hospital)$")
+    role: str = Field(..., pattern="^(family|community|hospital|admin)$")
 
 
 class SelectRoleRequest(BaseModel):
     """新用户选择角色"""
     client_id: str = Field(..., min_length=8, max_length=64)
-    role: str = Field(..., pattern="^(family|community|hospital)$")
+    role: str = Field(..., pattern="^(family|community|hospital|admin)$")
     real_name: str = Field(default="", max_length=50)
     phone: str = Field(default="", max_length=20)
 

@@ -1,5 +1,5 @@
 """社区端 API 路由"""
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from ...models.authorization import AuthorizationGrant
 from ..middleware.auth_mw import get_current_user, require_role
 

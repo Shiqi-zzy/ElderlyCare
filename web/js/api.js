@@ -1,5 +1,5 @@
 /* 智慧养老平台 - API 通信层 */
-const API_BASE = 'http://localhost:8000';
+const API_BASE = 'http://localhost:8002';
 
 class ApiClient {
     constructor() {
@@ -43,14 +43,14 @@ class ApiClient {
     put(path, body) { return this.request('PUT', path, body); }
 
     // ── 认证 ──
-    async login(username, password) {
-        const result = await this.post('/api/auth/login', { username, password });
-        this.setToken(result.access_token);
-        return result;
+    // 平台后端登录契约：手机验证码登录（P1 短信不可用时固定验证码 123456），
+    // 首次登录自动创建对应角色账号，无需单独注册
+    async sendCode(phone) {
+        return this.post('/api/auth/send-code', { phone });
     }
 
-    async register(username, password, real_name, phone, role) {
-        const result = await this.post('/api/auth/register', { username, password, real_name, phone, role });
+    async login(phone, code, role) {
+        const result = await this.post('/api/auth/login', { phone, code, role });
         this.setToken(result.access_token);
         return result;
     }

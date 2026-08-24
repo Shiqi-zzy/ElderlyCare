@@ -24,38 +24,46 @@ async function loadCurrentUser() {
     }
 }
 
+// 获取验证码
+async function handleSendCode() {
+    const phone = document.getElementById('login-phone').value;
+    if (!phone || phone.length !== 11) {
+        showToast('请先输入 11 位手机号', 'error');
+        return;
+    }
+    const btn = document.getElementById('send-code-btn');
+    try {
+        await api.sendCode(phone);
+        showToast('验证码已发送（短信不可用时固定 123456）', 'success');
+        let left = 60;
+        btn.disabled = true;
+        const timer = setInterval(() => {
+            btn.textContent = `重新获取(${left}s)`;
+            if (--left <= 0) {
+                clearInterval(timer);
+                btn.disabled = false;
+                btn.textContent = '获取验证码';
+            }
+        }, 1000);
+    } catch (e) {
+        showToast('发送失败: ' + e.message, 'error');
+    }
+}
+
 // 登录处理
 async function handleLogin(event) {
     event.preventDefault();
-    const username = document.getElementById('login-username').value;
-    const password = document.getElementById('login-password').value;
+    const phone = document.getElementById('login-phone').value;
+    const code = document.getElementById('login-code').value;
+    const role = document.getElementById('login-role').value;
 
     try {
-        const result = await api.login(username, password);
+        const result = await api.login(phone, code, role);
         currentUser = result.user;
         showToast('登录成功', 'success');
         initPortalByRole(currentUser.role);
     } catch (e) {
         showToast('登录失败: ' + e.message, 'error');
-    }
-}
-
-// 注册处理
-async function handleRegister(event) {
-    event.preventDefault();
-    const username = document.getElementById('reg-username').value;
-    const password = document.getElementById('reg-password').value;
-    const realName = document.getElementById('reg-realname').value;
-    const phone = document.getElementById('reg-phone').value;
-    const role = document.getElementById('reg-role').value;
-
-    try {
-        const result = await api.register(username, password, realName, phone, role);
-        currentUser = result.user;
-        showToast('注册成功', 'success');
-        initPortalByRole(currentUser.role);
-    } catch (e) {
-        showToast('注册失败: ' + e.message, 'error');
     }
 }
 
