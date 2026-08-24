@@ -18,7 +18,7 @@ local.properties
 # 后端运行产物 / Python 编译缓存
 backend/**/__pycache__/
 *.pyc
-backend/*.db
+backend/**/*.db*
 backend/media/
 
 # Gradle 构建缓存（本机）
