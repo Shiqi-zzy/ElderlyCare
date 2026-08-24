@@ -32,13 +32,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -55,6 +54,12 @@ import com.elderlycare.app.ui.theme.Surface as SurfaceColor
 import com.elderlycare.app.ui.theme.TextHint
 import com.elderlycare.app.ui.theme.TextPrimary
 import com.elderlycare.app.ui.theme.TextSecondary
+
+// 页面风格常量（与首页统一：极浅蓝背景 + 极浅蓝渐变横幅）
+private val PageBg = Color(0xFFF5F7FA)
+private val BannerBlueStart = Color(0xFFEAF2FF)
+private val BannerBlueEnd = Color(0xFFF5F9FF)
+private val BannerText = Color(0xFF1A2332)
 
 /** 会话头像色板（设备蓝 / 我方绿 / 他人橙，Material 风格） */
 private val AvatarDevice = Color(0xFF4086E8)
@@ -91,53 +96,79 @@ fun MessageCenterScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("消息中心", fontWeight = FontWeight.SemiBold) },
-                actions = {
-                    TextButton(onClick = { viewModel.markAllRead() }) {
-                        Text("全部已读", color = Primary)
-                    }
-                    TextButton(onClick = onOpenLeave) {
-                        Text("去留言", color = Primary)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceColor)
-            )
-        }
+        containerColor = PageBg
     ) { paddingValues ->
-        if (conversations.isEmpty()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            // 蓝色渐变顶部横幅（标题 + 操作按钮）
             Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentAlignment = Alignment.Center
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(BannerBlueStart, BannerBlueEnd)
+                        )
+                    )
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_empty_state),
-                        contentDescription = null,
-                        modifier = Modifier.size(96.dp)
-                    )
-                    Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        "暂无会话消息",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextHint
+                        "消息中心",
+                        color = BannerText,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.headlineSmall
                     )
+                    Row {
+                        TextButton(onClick = { viewModel.markAllRead() }) {
+                            Text("全部已读", color = Primary)
+                        }
+                        TextButton(onClick = onOpenLeave) {
+                            Text("去留言", color = Primary)
+                        }
+                    }
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(conversations, key = { "conv_${it.key}" }) { conversation ->
-                    ConversationRow(
-                        conversation = conversation,
-                        onClick = { onOpenConversation(conversation.key) }
-                    )
+
+            if (conversations.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_empty_state),
+                            contentDescription = null,
+                            modifier = Modifier.size(96.dp)
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            "暂无会话消息",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextHint
+                        )
+                    }
                 }
-                item { Spacer(Modifier.height(8.dp)) }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(conversations, key = { "conv_${it.key}" }) { conversation ->
+                        ConversationRow(
+                            conversation = conversation,
+                            onClick = { onOpenConversation(conversation.key) }
+                        )
+                    }
+                    item { Spacer(Modifier.height(8.dp)) }
+                }
             }
         }
     }

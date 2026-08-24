@@ -3,6 +3,8 @@ package com.elderlycare.app.ui.ezviz
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.widget.Toast
@@ -37,6 +39,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -120,7 +123,14 @@ fun LivePreviewScreen(
     var showDeviceDialog by remember { mutableStateOf(false) }
 
     fun toast(msg: String) {
-        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        // Toast 只能在主线程弹：后台协程（录音/发送/计时）里也会调这里，非主线程时抛回主线程执行
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+        } else {
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     // ==================== 按住说话（Screen 内状态机；录音/发送复用留言页底层，业务零改动） ====================
@@ -303,27 +313,28 @@ fun LivePreviewScreen(
                         Column {
                             Text(
                                 deviceInfo?.deviceName?.takeIf { it.isNotBlank() } ?: deviceSerial,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
                             )
                             Text(
                                 deviceSerial,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = TextSecondary
+                                color = Color.White.copy(alpha = 0.6f)
                             )
                         }
                     },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = Color.White)
                         }
                     },
                     actions = {
                         // 齿轮：设备信息对话框（名称/序列号/在线状态）
                         IconButton(onClick = { showDeviceDialog = true }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "设备信息")
+                            Icon(Icons.Filled.Settings, contentDescription = "设备信息", tint = Color.White)
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = PageDarkBg)
                 )
             }
         }
@@ -465,93 +476,89 @@ fun LivePreviewScreen(
                 }
             }
 
-            // 叠加控件横排：暂停 / 音量 / 高清 / 截图 / 投屏
-            if (controlsVisible && previewReady) {
-                Row(
-                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OverlayControlButton(
-                        icon = if (uiState.playerState == PlayerState.Paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                        label = "暂停",
-                        onClick = {
-                            if (uiState.useWebView) {
-                                toast("网页播放器暂不支持暂停")
-                            } else if (uiState.playerState == PlayerState.Paused) {
-                                player.resume()
-                            } else {
-                                player.pause()
-                            }
-                        }
-                    )
-                    OverlayControlButton(
-                        icon = if (uiState.isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                        label = "音量",
-                        onClick = { viewModel.toggleMute() }
-                    )
-                    OverlayControlButton(
-                        icon = Icons.Filled.HighQuality,
-                        label = "高清",
-                        onClick = { toast("高清模式即将上线") }
-                    )
-                    OverlayControlButton(
-                        icon = Icons.Filled.CameraAlt,
-                        label = "截图",
-                        onClick = onCaptureClick
-                    )
-                    OverlayControlButton(
-                        icon = Icons.Filled.Cast,
-                        label = "投屏",
-                        onClick = { toast("投屏功能即将上线") }
-                    )
-                }
-            }
+            // 视频底部控制栏已移至底部面板上方（暂停/音量/投屏，线条图标风格）
 
-            // 云台圆盘（仅支持云台的设备显示；按压期间抑制控件自动隐藏）
-            if (controlsVisible && previewReady && deviceInfo?.supportPtz == true) {
-                PtzControlDial(
-                    deviceSerial = deviceSerial,
-                    onToast = { toast(it) },
-                    onPressedChange = { ptzPressed = it },
-                    modifier = Modifier.align(Alignment.CenterEnd).padding(end = 12.dp)
-                )
-            }
+            // 云台控制已移至底部白色面板（白色圆盘风格）
 
-            // 底部：深色半透明面板（单行五控件均分：视频通话/录制/按住说话/对讲/截图）
-            // 点播/广播FM 已从播放器页隐藏，入口完整保留在首页网格
+            // 底部：视频控制栏 + 白色面板（功能行线条图标 + 云台控制圆盘）
             if (uiState.streamUrl != null && uiState.error == null) {
                 Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
+                    // 视频底部控制栏（暂停/音量/投屏，线条图标，渐变背景）
+                    if (controlsVisible && previewReady) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            Color.Transparent,
+                                            Color.Black.copy(alpha = 0.5f)
+                                        )
+                                    )
+                                )
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            IconButton(onClick = {
+                                if (uiState.useWebView) {
+                                    toast("网页播放器暂不支持暂停")
+                                } else if (uiState.playerState == PlayerState.Paused) {
+                                    player.resume()
+                                } else {
+                                    player.pause()
+                                }
+                            }) {
+                                Icon(
+                                    if (uiState.playerState == PlayerState.Paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
+                                    null, tint = Color.White, modifier = Modifier.size(26.dp)
+                                )
+                            }
+                            IconButton(onClick = { viewModel.toggleMute() }) {
+                                Icon(
+                                    if (uiState.isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                                    null, tint = Color.White, modifier = Modifier.size(26.dp)
+                                )
+                            }
+                            Spacer(Modifier.weight(1f))
+                            IconButton(onClick = { toast("投屏功能即将上线") }) {
+                                Icon(Icons.Filled.Cast, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                            }
+                        }
+                    }
+
+                    // 白色圆角面板
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(PanelBg)
-                            .padding(vertical = 14.dp)
+                            .background(
+                                Color.White,
+                                RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+                            )
+                            .padding(vertical = 16.dp)
                     ) {
-                        // 五控件等宽均分（weight 1f），无空位
-                        Row(modifier = Modifier.fillMaxWidth()) {
-                            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                RoundActionButton(
-                                    icon = Icons.Filled.VideoCall,
-                                    label = "视频通话",
-                                    bgColor = FuncGreen,
-                                    onClick = onNavigateToVideoCall
-                                )
-                            }
-                            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                RoundActionButton(
-                                    icon = if (uiState.isRecording) Icons.Filled.FiberManualRecord else Icons.Filled.Videocam,
-                                    label = if (uiState.isRecording) "停止" else "录制",
-                                    bgColor = if (uiState.isRecording) RecordRed else FuncPurple,
-                                    onClick = onRecordClick
-                                )
-                            }
-                            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                // 按住说话：按下开始录音、松开发送（手势被 pointerInput 消费，clickable 不会触发）
+                        // 功能行：对讲 / 视频通话 / 按住说话 / 录制 / 截图（线条图标风格）
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            LineActionButton(
+                                icon = Icons.AutoMirrored.Filled.VolumeUp,
+                                label = "对讲",
+                                onClick = onNavigateToMessage
+                            )
+                            LineActionButton(
+                                icon = Icons.Filled.VideoCall,
+                                label = "视频通话",
+                                onClick = onNavigateToVideoCall
+                            )
+                            // 按住说话（中间，保留圆形按钮+按住手势）
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Surface(
                                     shape = CircleShape,
                                     color = if (isHoldingTalk) MicBlue.copy(alpha = 0.75f) else MicBlue,
                                     modifier = Modifier
-                                        .size(if (isHoldingTalk) 78.dp else 72.dp)
+                                        .size(if (isHoldingTalk) 58.dp else 52.dp)
                                         .pointerInput(Unit) {
                                             awaitEachGesture {
                                                 val down = awaitFirstDown(requireUnconsumed = false)
@@ -574,35 +581,38 @@ fun LivePreviewScreen(
                                             }
                                         }
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Icon(Icons.Filled.Mic, null, tint = Color.White, modifier = Modifier.size(26.dp))
-                                        Text(
-                                            if (isHoldingTalk) "松开结束 ${holdElapsed}s" else "按住说话",
-                                            color = Color.White,
-                                            style = MaterialTheme.typography.labelSmall
-                                        )
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(Icons.Filled.Mic, null, tint = Color.White, modifier = Modifier.size(22.dp))
                                     }
                                 }
-                            }
-                            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                RoundActionButton(
-                                    icon = Icons.AutoMirrored.Filled.VolumeUp,
-                                    label = "对讲",
-                                    bgColor = FuncOrange,
-                                    onClick = onNavigateToMessage
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    if (isHoldingTalk) "松开结束" else "按住说话",
+                                    color = TextPrimary,
+                                    style = MaterialTheme.typography.labelSmall
                                 )
                             }
-                            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                                RoundActionButton(
-                                    icon = Icons.Filled.CameraAlt,
-                                    label = "截图",
-                                    bgColor = CaptureBlue,
-                                    onClick = onCaptureClick
-                                )
-                            }
+                            LineActionButton(
+                                icon = if (uiState.isRecording) Icons.Filled.FiberManualRecord else Icons.Filled.Videocam,
+                                label = if (uiState.isRecording) "停止" else "录制",
+                                onClick = onRecordClick
+                            )
+                            LineActionButton(
+                                icon = Icons.Filled.CameraAlt,
+                                label = "截图",
+                                onClick = onCaptureClick
+                            )
+                        }
+
+                        // 云台控制圆盘（仅支持云台的设备显示）
+                        if (deviceInfo?.supportPtz == true) {
+                            Spacer(Modifier.height(16.dp))
+                            PtzControlDial(
+                                deviceSerial = deviceSerial,
+                                onToast = { toast(it) },
+                                onPressedChange = { ptzPressed = it },
+                                modifier = Modifier.align(Alignment.CenterHorizontally)
+                            )
                         }
                     }
                 }
@@ -667,12 +677,30 @@ private fun OverlayControlButton(
     }
 }
 
-/** 底部面板大圆按钮（圆形色块 + 小字标签）；统一 Material 内置白色矢量图标 */
+/** 底部面板线条图标按钮（无背景色块，深色线条图标 + 文字标签） */
+@Composable
+private fun LineActionButton(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Icon(icon, null, tint = TextPrimary, modifier = Modifier.size(26.dp))
+        Spacer(Modifier.height(4.dp))
+        Text(label, color = TextPrimary, style = MaterialTheme.typography.labelSmall)
+    }
+}
+
+/** 底部面板圆按钮（圆形色块 + 小字标签）；统一 Material 内置白色矢量图标 */
 @Composable
 private fun RoundActionButton(
     icon: ImageVector,
     label: String,
     bgColor: Color,
+    labelColor: Color = Color.White.copy(alpha = 0.85f),
     size: Dp = 56.dp,
     onClick: () -> Unit
 ) {
@@ -687,6 +715,6 @@ private fun RoundActionButton(
             }
         }
         Spacer(Modifier.height(4.dp))
-        Text(label, color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelSmall)
+        Text(label, color = labelColor, style = MaterialTheme.typography.labelSmall)
     }
 }

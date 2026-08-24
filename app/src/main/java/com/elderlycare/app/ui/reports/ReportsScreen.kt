@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -20,6 +21,12 @@ import com.elderlycare.app.ui.components.RiskLevel
 import com.elderlycare.app.ui.components.RiskLevelIndicator
 import com.elderlycare.app.ui.components.StatusBadge
 import com.elderlycare.app.ui.theme.*
+
+// 页面风格常量（与首页统一：极浅蓝背景 + 极浅蓝渐变横幅）
+private val PageBg = Color(0xFFF5F7FA)
+private val BannerBlueStart = Color(0xFFEAF2FF)
+private val BannerBlueEnd = Color(0xFFF5F9FF)
+private val BannerText = Color(0xFF1A2332)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,22 +36,36 @@ fun ReportsScreen(
     var selectedTab by remember { mutableIntStateOf(0) }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("情绪倾向报告", fontWeight = FontWeight.SemiBold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
-            )
-        }
+        containerColor = PageBg
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Tab 切换
+            // 蓝色渐变顶部横幅
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(BannerBlueStart, BannerBlueEnd)
+                        )
+                    )
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                Text(
+                    "情绪倾向报告",
+                    color = BannerText,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            }
+
+            // Tab 切换（白色背景，选中蓝色）
             TabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = Surface,
+                containerColor = Color.White,
                 contentColor = Primary
             ) {
                 listOf("日报", "周报", "异常报告").forEachIndexed { index, title ->

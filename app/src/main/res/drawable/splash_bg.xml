@@ -1,15 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 启动页 windowBackground：白底 + 居中主视觉（全 API 级别生效的旧式 splash；
-     31+ 系统 splash 图标先显示，随后露出本背景，Compose 首帧覆盖） -->
+<!-- 启动页 windowBackground：仅浅蓝渐变背景，与 Compose 欢迎页同色系衔接。
+     不放居中 bitmap（welcome_bg 仅 216x384，大屏上会显示成小图闪烁）。 -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="#FFFFFF" />
+            <gradient
+                android:angle="270"
+                android:startColor="#E8F1FB"
+                android:centerColor="#F2F7FC"
+                android:endColor="#FFFFFF" />
         </shape>
-    </item>
-    <item>
-        <bitmap
-            android:gravity="center"
-            android:src="@drawable/splash_main" />
     </item>
 </layer-list>

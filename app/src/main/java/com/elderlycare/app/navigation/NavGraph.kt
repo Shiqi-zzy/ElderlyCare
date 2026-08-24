@@ -29,6 +29,7 @@ import com.elderlycare.app.ui.login.CommunityLoginScreen
 import com.elderlycare.app.ui.login.FamilyLoginScreen
 import com.elderlycare.app.ui.login.HospitalLoginScreen
 import com.elderlycare.app.ui.login.PortalSelectionScreen
+import com.elderlycare.app.ui.login.WelcomeScreen
 import com.elderlycare.app.ui.message.ConversationScreen
 import com.elderlycare.app.ui.message.DeviceVideoPlayerScreen
 import com.elderlycare.app.ui.message.MessageScreen
@@ -50,20 +51,31 @@ fun AppNavGraph() {
     val navController = rememberNavController()
     val incomingCall by RtcSignalingManager.incomingCall.collectAsState()
 
-    // 启动会话判断：
+    // 启动会话判断（欢迎页点击后进入的真实首屏）：
     // 1. 已登录家属 → FamilyMain
     // 2. 已登录工作人员（按角色）→ CommunityMain / HospitalMain
     // 3. 均无 → PortalSelection；current_staff_id 对应账号不存在/损坏 → 清除登录态回门户
-    var startDestination by remember { mutableStateOf<String?>(null) }
+    var realStart by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(Unit) {
-        startDestination = resolveStartDestination()
+        realStart = resolveStartDestination()
     }
-    val start = startDestination ?: return
 
     NavHost(
         navController = navController,
-        startDestination = start
+        startDestination = Screen.Welcome.route
     ) {
+        // ===== 启动欢迎页：点击「开启安心守护」再进入真实首屏（按登录态） =====
+        composable(Screen.Welcome.route) {
+            WelcomeScreen(
+                onEnter = {
+                    val target = realStart ?: Screen.PortalSelection.route
+                    navController.navigate(target) {
+                        popUpTo(Screen.Welcome.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         // ===== 门户选择 =====
         composable(Screen.PortalSelection.route) {
             PortalSelectionScreen(

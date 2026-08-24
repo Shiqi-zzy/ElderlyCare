@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -38,6 +39,11 @@ import java.util.Locale
 
 /** 全部抓拍页 FAB 绿色（规格：右下角绿色悬浮相机按钮；与首页「抓拍」色块同色） */
 private val CaptureGreen = Color(0xFF42BD67)
+
+/** 顶部横幅极浅蓝渐变（与其他页面统一） */
+private val BannerBlueStart = Color(0xFFEAF2FF)
+private val BannerBlueEnd = Color(0xFFF5F9FF)
+private val BannerText = Color(0xFF1A2332)
 
 /**
  * 全部抓拍页：手动抓拍 + 设备告警自动抓拍快照的唯一查看入口（纯列表页，无顶部播放器）。
@@ -67,44 +73,7 @@ fun AllCapturesScreen(
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("全部抓拍", fontWeight = FontWeight.SemiBold)
-                        if (uiState.unreadCount > 0) {
-                            Spacer(Modifier.width(8.dp))
-                            Surface(shape = RoundedCornerShape(10.dp), color = Error) {
-                                Text(
-                                    "${uiState.unreadCount}",
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = OnError
-                                )
-                            }
-                        }
-                    }
-                },
-                navigationIcon = {
-                    if (onBack != null) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
-                        }
-                    }
-                },
-                actions = {
-                    // 问号帮助：页面说明
-                    IconButton(onClick = { showHelp = true }) {
-                        Icon(Icons.Default.HelpOutline, "帮助")
-                    }
-                    // 右上文字按钮：跳提醒计划页
-                    TextButton(onClick = onNavigateToRemindPlan) {
-                        Text("抓拍计划", color = Primary)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
-            )
-        },
+        containerColor = Color(0xFFF5F7FA),
         floatingActionButton = {
             // 右下角绿色小悬浮相机（手动抓拍入口；非底部通栏大按钮）
             FloatingActionButton(
@@ -131,32 +100,85 @@ fun AllCapturesScreen(
             }
         }
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            when {
-                uiState.isLoading && uiState.items.isEmpty() -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
-                uiState.items.isEmpty() && uiState.loadFailed -> {
-                    // 加载失败：网络异常占位图（未绑定设备显示普通空态，不误报网络异常）
-                    EmptyStateImage(
-                        painter = painterResource(R.drawable.ic_network_error),
-                        text = "网络异常，请稍后重试"
+        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            // 极浅蓝渐变顶部横幅
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(BannerBlueStart, BannerBlueEnd)
+                        )
                     )
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = BannerText)
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            "全部抓拍",
+                            fontWeight = FontWeight.SemiBold,
+                            color = BannerText,
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                        if (uiState.unreadCount > 0) {
+                            Spacer(Modifier.width(8.dp))
+                            Surface(shape = RoundedCornerShape(10.dp), color = Error) {
+                                Text(
+                                    "${uiState.unreadCount}",
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = OnError
+                                )
+                            }
+                        }
+                    }
+                    IconButton(onClick = { showHelp = true }) {
+                        Icon(Icons.Default.HelpOutline, "帮助", tint = BannerText)
+                    }
+                    TextButton(onClick = onNavigateToRemindPlan) {
+                        Text("抓拍计划", color = Primary)
+                    }
                 }
-                uiState.items.isEmpty() -> {
-                    // 空态：插图 + 提示（未绑定设备同样显示空态）
-                    EmptyStateImage(
-                        painter = painterResource(R.drawable.ic_empty_state),
-                        text = "暂无抓拍内容"
-                    )
-                }
-                else -> {
-                    LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)) {
-                        items(uiState.items, key = { it.recordId }) { item ->
-                            CaptureRow(
-                                item = item,
-                                onClick = { viewModel.markRead(item) }
-                            )
+            }
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                when {
+                    uiState.isLoading && uiState.items.isEmpty() -> {
+                        CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    }
+                    uiState.items.isEmpty() && uiState.loadFailed -> {
+                        // 加载失败：网络异常占位图（未绑定设备显示普通空态，不误报网络异常）
+                        EmptyStateImage(
+                            painter = painterResource(R.drawable.ic_network_error),
+                            text = "网络异常，请稍后重试"
+                        )
+                    }
+                    uiState.items.isEmpty() -> {
+                        // 空态：插图 + 提示（未绑定设备同样显示空态）
+                        EmptyStateImage(
+                            painter = painterResource(R.drawable.ic_empty_state),
+                            text = "暂无抓拍内容"
+                        )
+                    }
+                    else -> {
+                        LazyColumn(contentPadding = PaddingValues(top = 8.dp, bottom = 80.dp)) {
+                            items(uiState.items, key = { it.recordId }) { item ->
+                                CaptureRow(
+                                    item = item,
+                                    onClick = { viewModel.markRead(item) }
+                                )
+                            }
                         }
                     }
                 }

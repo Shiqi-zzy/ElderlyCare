@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +35,10 @@ private val CardWhite = Color.White
 private val OnlineGreen = Color(0xFF4CAF50)
 private val OfflineGray = Color(0xFFBDBDBD)
 private val AvatarBg = Color(0xFF4086E8)
+private val BannerBlueStart = Color(0xFFEAF2FF)
+private val BannerBlueEnd = Color(0xFFF5F9FF)
+private val BannerText = Color(0xFF1A2332)
+private val BannerTextSecondary = Color(0xFF4A5568)
 
 /** 手机号脱敏：181****6373（不足 7 位原样展示，空则空串） */
 private fun maskPhone(phone: String): String =
@@ -109,13 +114,7 @@ fun MyScreen(
     var showLogoutDialog by remember { mutableStateOf(false) }
 
     Scaffold(
-        containerColor = PageBg,
-        topBar = {
-            TopAppBar(
-                title = { Text("我的", fontWeight = FontWeight.SemiBold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = PageBg)
-            )
-        }
+        containerColor = PageBg
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -125,56 +124,73 @@ fun MyScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // ① 个人信息头卡片（仅账号信息：头像/姓名/脱敏手机号/在线状态 + 设置/消息入口）
+            // ① 个人信息头卡片（蓝色渐变背景，白色文字）
             Card(
                 shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = CardWhite),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(BannerBlueStart, BannerBlueEnd)
+                        ),
+                        RoundedCornerShape(20.dp)
+                    )
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(shape = CircleShape, color = AvatarBg.copy(alpha = 0.12f), modifier = Modifier.size(60.dp)) {
-                        Box(contentAlignment = Alignment.Center) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        "我的",
+                        color = BannerText,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(Modifier.height(14.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(shape = CircleShape, color = AvatarBg.copy(alpha = 0.12f), modifier = Modifier.size(60.dp)) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    (currentUser?.name ?: "家").take(1),
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AvatarBg
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                (currentUser?.name ?: "家").take(1),
-                                style = MaterialTheme.typography.headlineMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = AvatarBg
+                                currentUser?.name ?: "未登录",
+                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.titleLarge,
+                                color = BannerText
                             )
-                        }
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            currentUser?.name ?: "未登录",
-                            fontWeight = FontWeight.SemiBold,
-                            style = MaterialTheme.typography.titleLarge
-                        )
-                        Spacer(Modifier.height(3.dp))
-                        Text(
-                            maskPhone(currentUser?.phone.orEmpty()).ifBlank { "未绑定手机号" },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextSecondary
-                        )
-                        Spacer(Modifier.height(5.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(8.dp)
-                                    .clip(CircleShape)
-                                    .background(OnlineGreen)
+                            Spacer(Modifier.height(3.dp))
+                            Text(
+                                maskPhone(currentUser?.phone.orEmpty()).ifBlank { "未绑定手机号" },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = BannerTextSecondary
                             )
-                            Spacer(Modifier.width(5.dp))
-                            Text("在线", style = MaterialTheme.typography.labelSmall, color = OnlineGreen)
+                            Spacer(Modifier.height(5.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(8.dp)
+                                        .clip(CircleShape)
+                                        .background(OnlineGreen)
+                                )
+                                Spacer(Modifier.width(5.dp))
+                                Text("在线", style = MaterialTheme.typography.labelSmall, color = OnlineGreen)
+                            }
                         }
-                    }
-                    IconButton(onClick = { showAboutDialog = true }) {
-                        Icon(Icons.Filled.Settings, "设置", tint = TextSecondary)
-                    }
-                    IconButton(onClick = onOpenMessagesTab) {
-                        Icon(Icons.Filled.Notifications, "消息", tint = TextSecondary)
+                        IconButton(onClick = { showAboutDialog = true }) {
+                            Icon(Icons.Filled.Settings, "设置", tint = BannerTextSecondary)
+                        }
+                        IconButton(onClick = onOpenMessagesTab) {
+                            Icon(Icons.Filled.Notifications, "消息", tint = BannerTextSecondary)
+                        }
                     }
                 }
             }

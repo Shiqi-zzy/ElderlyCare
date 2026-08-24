@@ -17,11 +17,20 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import com.elderlycare.app.ui.theme.*
+
+// 页面风格常量（与首页统一：极浅蓝背景 + 极浅蓝渐变横幅）
+private val PageBg = Color(0xFFF5F7FA)
+private val BannerBlueStart = Color(0xFFEAF2FF)
+private val BannerBlueEnd = Color(0xFFF5F9FF)
+private val BannerText = Color(0xFF1A2332)
+private val BannerTextSecondary = Color(0xFF4A5568)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -37,12 +46,7 @@ fun CalendarScreen() {
     }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("日程", fontWeight = FontWeight.SemiBold) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Surface)
-            )
-        },
+        containerColor = PageBg,
         floatingActionButton = {
             AnimatedVisibility(
                 visible = fabVisible,
@@ -66,26 +70,55 @@ fun CalendarScreen() {
                 .padding(paddingValues)
                 .verticalScroll(scrollState)
         ) {
-            // 年月标题 + 视图切换
-            Row(
+            // 蓝色渐变顶部横幅（标题 + 年月 + 视图切换）
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("2024年 7月", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.headlineSmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    listOf("月", "周", "日").forEach { view ->
-                        FilterChip(
-                            selected = view == "月",
-                            onClick = { },
-                            label = { Text(view) },
-                            shape = RoundedCornerShape(14.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(BannerBlueStart, BannerBlueEnd)
                         )
+                    )
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
+            ) {
+                Column {
+                    Text(
+                        "日程",
+                        color = BannerText,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "2024年 7月",
+                            color = BannerText,
+                            fontWeight = FontWeight.SemiBold,
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            listOf("月", "周", "日").forEach { view ->
+                                FilterChip(
+                                    selected = view == "月",
+                                    onClick = { },
+                                    label = { Text(view, color = if (view == "月") Primary else BannerTextSecondary) },
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = Color.White,
+                                        containerColor = Color.White.copy(alpha = 0.6f)
+                                    )
+                                )
+                            }
+                        }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             // 日历网格
             CalendarGrid(selectedDay = selectedDay, onDayClick = { selectedDay = it })

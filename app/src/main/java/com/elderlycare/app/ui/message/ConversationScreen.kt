@@ -2,6 +2,7 @@ package com.elderlycare.app.ui.message
 
 import android.widget.Toast
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -46,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -68,6 +70,11 @@ import kotlinx.coroutines.launch
 
 /** 我方气泡底色（与主题主色一致）；对方气泡白色 */
 private val BubbleMine = Color(0xFF4086E8)
+
+/** 顶部横幅极浅蓝渐变（与其他页面统一） */
+private val BannerBlueStart = Color(0xFFEAF2FF)
+private val BannerBlueEnd = Color(0xFFF5F9FF)
+private val BannerText = Color(0xFF1A2332)
 
 /**
  * 聊天对话页：某发送方会话的全部历史消息（气泡对话 + 时间戳）。
@@ -108,15 +115,34 @@ fun ConversationScreen(
     val listState = rememberLazyListState()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(conversationKey, fontWeight = FontWeight.SemiBold) },
-                navigationIcon = {
+        containerColor = Color(0xFFF5F7FA)
+    ) { paddingValues ->
+        Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
+            // 极浅蓝渐变顶部横幅
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(BannerBlueStart, BannerBlueEnd)
+                        )
+                    )
+                    .padding(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = BannerText)
                     }
-                },
-                actions = {
+                    Text(
+                        conversationKey,
+                        fontWeight = FontWeight.SemiBold,
+                        color = BannerText,
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.weight(1f)
+                    )
                     TextButton(
                         onClick = {
                             val unreadIds = messages.filter { !it.isRead }.map { it.id }
@@ -128,39 +154,38 @@ fun ConversationScreen(
                     ) {
                         Text("全部已读", color = Primary)
                     }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = SurfaceColor)
-            )
-        }
-    ) { paddingValues ->
-        if (messages.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Image(
-                        painter = painterResource(R.drawable.ic_empty_state),
-                        contentDescription = null,
-                        modifier = Modifier.size(96.dp)
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    Text("暂无消息", style = MaterialTheme.typography.bodyMedium, color = TextHint)
                 }
             }
-        } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                reverseLayout = true,
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(messages, key = { "chat_${it.id}" }) { message ->
-                    ChatBubble(
-                        message = message,
-                        onOpenVideo = { onOpenVideo(message.id) }
-                    )
+
+            if (messages.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Image(
+                            painter = painterResource(R.drawable.ic_empty_state),
+                            contentDescription = null,
+                            modifier = Modifier.size(96.dp)
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Text("暂无消息", style = MaterialTheme.typography.bodyMedium, color = TextHint)
+                    }
+                }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                    reverseLayout = true,
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(messages, key = { "chat_${it.id}" }) { message ->
+                        ChatBubble(
+                            message = message,
+                            onOpenVideo = { onOpenVideo(message.id) }
+                        )
+                    }
                 }
             }
         }

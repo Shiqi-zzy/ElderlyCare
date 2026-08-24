@@ -355,7 +355,8 @@ class MessageViewModel(application: Application) : AndroidViewModel(application)
         player = exo
         _playingId.value = message.id
         _playbackProgress.value = 0f
-        progressJob = viewModelScope.launch(Dispatchers.Default) {
+        // ExoPlayer 在主线程创建，访问 duration/currentPosition 必须在主线程（否则抛 Player is accessed on the wrong thread）
+        progressJob = viewModelScope.launch(Dispatchers.Main) {
             while (isActive) {
                 val duration = exo.duration.takeIf { it > 0 } ?: 0L
                 _playbackProgress.value =

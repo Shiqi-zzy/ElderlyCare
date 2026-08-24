@@ -3,6 +3,9 @@ package com.elderlycare.app.navigation
 import android.net.Uri
 
 sealed class Screen(val route: String) {
+    // 启动欢迎页（点击「开启安心守护」后按登录态进入真实首屏）
+    data object Welcome : Screen("welcome")
+
     // 门户选择
     data object PortalSelection : Screen("portal_selection")
 

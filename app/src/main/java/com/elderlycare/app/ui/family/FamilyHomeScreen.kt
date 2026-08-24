@@ -16,13 +16,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.elderlycare.app.R
@@ -37,7 +38,7 @@ import com.elderlycare.app.ui.theme.TextHint
 import com.elderlycare.app.ui.theme.TextPrimary
 import kotlinx.coroutines.flow.flowOf
 
-// ==================== 图四首页设计色值（页面局部常量，不改全局主题） ====================
+// ==================== 首页设计色值（页面局部常量，不改全局主题） ====================
 private val HomeBg = Color(0xFFF7F9FC)
 private val FuncBlue = Color(0xFF4086E8)
 private val FuncGreen = Color(0xFF42BD67)
@@ -50,20 +51,22 @@ private val FuncLightRed = Color(0xFFF59B9B)
 private val BadgeRed = Color(0xFFF24848)
 private val OnlineGreen = Color(0xFF4CAF50)
 private val OfflineGray = Color(0xFFBDBDBD)
-private val ThumbPlaceholderBrush = androidx.compose.ui.graphics.Brush.verticalGradient(
-    listOf(Color(0xFF3D5A73), Color(0xFF2C3E50))
+private val BannerGradient = Brush.horizontalGradient(
+    listOf(Color(0xFF4A7FE8), Color(0xFF6BA5FF))
 )
 
 /**
- * 家属首页（Phase 3 UI 重设计，图四原型 A）。
+ * 家属首页（UI 美化版）。
  *
- * 功能网格固定 2 行 4 列：
- * 第一行：抓拍（跳全部抓拍页，不直接触发抓拍）/ 视频通话（ERTC）/ 对讲（进入预览页）/ 录像（SD 录像回放列表）
- * 第二行：留言 / 录音（快速进留言）/ 点播（RK3 点播）/ 广播（云广播 FM）。
- * 「告警消息」快捷入口已彻底移除：抓拍图片/自动抓拍快照统一在【全部抓拍】页查看，
- * 告警文字通知进消息 Tab（底部铃铛角标）；首页「抓拍」图标保留后端抓拍未读角标（与消息 Tab 互不干扰）。
- * 图标素材统一走 res/drawable（英文命名），禁止引用 C 盘绝对路径。
- * 数据全部来自真实业务流，禁止 Mock。
+ * 功能网格固定 2 行 4 列（功能与回调零改动）：
+ * 第一行：抓拍 / 视频通话 / 对讲 / 录像
+ * 第二行：留言 / 录音 / 点播 / 广播
+ *
+ * UI 改动：
+ * - 顶部 Banner 改为蓝色渐变卡片 + 文案 + 房子爱心插画 + 轮播指示点
+ * - 设备卡片缩略图无云端 cover 时显示默认居家场景图 + 中央播放按钮
+ * - 功能图标去掉方形彩色背景，改为扁平彩色线条图标，整体放入白色卡片
+ * - 所有数据获取、未读数、点击回调、导航逻辑保持不变
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -77,15 +80,14 @@ fun FamilyHomeScreen(
     onNavigateToBroadcast: () -> Unit,
     onOpenMessagesTab: () -> Unit
 ) {
-    // 已绑定设备（响应式）：读 BindingRepository 授权链路（档案 deviceSn），不读 DeviceBindingStore 缓存
+    // 已绑定设备（响应式）
     var boundDevice by remember { mutableStateOf<BindingRepository.AccessibleDevice?>(null) }
     LaunchedEffect(Unit) {
         ServiceLocator.bindingRepository.observeCurrentUserDevice().collect { boundDevice = it }
     }
     val deviceSn = boundDevice?.deviceSn
 
-    // 未读数（未绑定设备时恒为 0，隐藏角标）：铃铛=全部合计、留言=分类1；
-    // 抓拍图标角标=后端 alarm_events 未读数（与消息 Tab Room 角标互不干扰）
+    // 未读数
     val totalUnread by remember(deviceSn) {
         deviceSn?.let { ServiceLocator.messageRepository.observeUnreadCount(it) } ?: flowOf(0)
     }.collectAsStateWithLifecycle(initialValue = 0)
@@ -94,7 +96,7 @@ fun FamilyHomeScreen(
             ServiceLocator.messageRepository.observeUnreadCountByCategory(it, MessageEntity.MESSAGE_CATEGORY_LEAVE_MSG)
         } ?: flowOf(0)
     }.collectAsStateWithLifecycle(initialValue = 0)
-    // 后端抓拍未读数：进页拉取 + WS 新告警/图片就绪（captureFeed）实时重拉
+    // 后端抓拍未读数
     var captureUnread by remember { mutableIntStateOf(0) }
     LaunchedEffect(deviceSn) {
         val sn = deviceSn
@@ -146,50 +148,62 @@ fun FamilyHomeScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 顶部蓝色渐变 Banner
             BannerCard()
 
             // 我的设备
             Text("我的设备", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             MyDeviceCard(deviceSn = deviceSn, onClick = onNavigateToVideo)
 
-            // 第一行功能（固定 2×4 网格）：抓拍 / 视频通话 / 对讲 / 录像（统一 Material 矢量图标）
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                HomeFuncIcon(
-                    icon = Icons.Filled.CameraAlt, label = "抓拍",
-                    bgColor = FuncBlue, badgeCount = captureUnread, onClick = onOpenCaptures
-                )
-                HomeFuncIcon(
-                    icon = Icons.Filled.VideoCall, label = "视频通话",
-                    bgColor = FuncGreen, onClick = onNavigateToVideoCall
-                )
-                HomeFuncIcon(
-                    icon = Icons.Filled.VolumeUp, label = "对讲",
-                    bgColor = FuncOrange, onClick = onNavigateToVideo
-                )
-                HomeFuncIcon(
-                    icon = Icons.Filled.Videocam, label = "录像",
-                    bgColor = FuncPurple, onClick = onNavigateToPlayback
-                )
-            }
+            // 功能图标卡片（2行4列，扁平线条图标）
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(modifier = Modifier.padding(vertical = 18.dp)) {
+                    // 第一行：抓拍 / 视频通话 / 对讲 / 录像
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        HomeFuncIcon(
+                            iconRes = R.drawable.ic_func_capture, label = "抓拍",
+                            badgeCount = captureUnread, onClick = onOpenCaptures
+                        )
+                        HomeFuncIcon(
+                            iconRes = R.drawable.ic_func_video_call, label = "视频通话",
+                            onClick = onNavigateToVideoCall
+                        )
+                        HomeFuncIcon(
+                            iconRes = R.drawable.ic_func_intercom, label = "对讲",
+                            onClick = onNavigateToVideo
+                        )
+                        HomeFuncIcon(
+                            iconRes = R.drawable.ic_func_record, label = "录像",
+                            onClick = onNavigateToPlayback
+                        )
+                    }
 
-            // 第二行功能：留言 / 录音 / 点播 / 广播
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                HomeFuncIcon(
-                    icon = Icons.Filled.Message, label = "留言",
-                    bgColor = FuncLightBlue, badgeCount = leaveUnread, onClick = onNavigateToMessage
-                )
-                HomeFuncIcon(
-                    icon = Icons.Filled.Mic, label = "录音",
-                    bgColor = FuncLightGreen, onClick = onNavigateToMessage
-                )
-                HomeFuncIcon(
-                    icon = Icons.Filled.PlayArrow, label = "点播",
-                    bgColor = FuncLightOrange, onClick = onNavigateToRk3Play
-                )
-                HomeFuncIcon(
-                    icon = Icons.Filled.Campaign, label = "广播",
-                    bgColor = FuncLightRed, onClick = onNavigateToBroadcast
-                )
+                    Spacer(modifier = Modifier.height(18.dp))
+
+                    // 第二行：留言 / 录音 / 点播 / 广播
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        HomeFuncIcon(
+                            iconRes = R.drawable.ic_func_message, label = "留言",
+                            badgeCount = leaveUnread, onClick = onNavigateToMessage
+                        )
+                        HomeFuncIcon(
+                            iconRes = R.drawable.ic_func_voice, label = "录音",
+                            onClick = onNavigateToMessage
+                        )
+                        HomeFuncIcon(
+                            iconRes = R.drawable.ic_func_play, label = "点播",
+                            onClick = onNavigateToRk3Play
+                        )
+                        HomeFuncIcon(
+                            iconRes = R.drawable.ic_func_broadcast, label = "广播",
+                            onClick = onNavigateToBroadcast
+                        )
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -197,38 +211,81 @@ fun FamilyHomeScreen(
     }
 }
 
-/** 顶部品牌 Banner：bg_home_top 全宽背景 + 右侧老人居家插画（illust_oldman_home） */
+/**
+ * 顶部 Banner：蓝色渐变背景 + 左侧文案 + 右侧房子爱心插画 + 底部轮播指示点。
+ */
 @Composable
 private fun BannerCard() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(150.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color.White)
+            .height(130.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(BannerGradient)
     ) {
+        // 左侧文案
+        Column(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 20.dp)
+        ) {
+            Text(
+                text = "科技守护家人",
+                color = Color.White,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(5.dp))
+            Text(
+                text = "陪伴就在身边",
+                color = Color.White.copy(alpha = 0.9f),
+                fontSize = 14.sp
+            )
+        }
+
+        // 右侧房子爱心插画
         Image(
-            painter = painterResource(R.drawable.bg_home_top),
-            contentDescription = "首页顶部品牌",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.FillBounds
-        )
-        Image(
-            painter = painterResource(R.drawable.illust_oldman_home),
-            contentDescription = "老人居家插画",
+            painter = painterResource(R.drawable.home_banner_illustration),
+            contentDescription = null,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .padding(end = 10.dp)
-                .height(134.dp),
+                .padding(end = 14.dp)
+                .height(95.dp),
             contentScale = ContentScale.Fit
         )
+
+        // 底部轮播指示点（3页，第1页高亮）
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            BannerDot(isActive = true)
+            BannerDot(isActive = false)
+            BannerDot(isActive = false)
+        }
     }
 }
 
+/** Banner 底部小圆点 */
+@Composable
+private fun BannerDot(isActive: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(if (isActive) 7.dp else 5.dp)
+            .clip(CircleShape)
+            .background(
+                if (isActive) Color.White
+                else Color.White.copy(alpha = 0.5f)
+            )
+    )
+}
+
 /**
- * 我的设备卡片：设备名（getDeviceInfo 云端真实数据，失败兜底 SN）+ 绿色在线点 +
- * 缩略图（Coil 加载 deviceCover，无则渐变占位）；
- * 整卡点击跳播放器。中间不再渲染圆形视频占位图标。
+ * 我的设备卡片：设备名 + 在线点 + 右箭头 + 缩略预览图。
+ * 无云端 cover 时显示默认居家场景占位图 + 中央播放按钮。
  */
 @Composable
 private fun MyDeviceCard(deviceSn: String?, onClick: () -> Unit) {
@@ -243,10 +300,11 @@ private fun MyDeviceCard(deviceSn: String?, onClick: () -> Unit) {
     }
     val displayName = device?.deviceName?.takeIf { it.isNotBlank() } ?: deviceSn ?: "未绑定 RK3 设备"
     val online = device?.status == DeviceStatus.ONLINE
+    val hasCover = device?.deviceCover?.isNotBlank() == true
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -268,34 +326,57 @@ private fun MyDeviceCard(deviceSn: String?, onClick: () -> Unit) {
                 )
                 Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, null, tint = TextHint)
             }
-            // 缩略预览图：渐变占位为底，云端 cover 加载成功后覆盖其上；无中央占位图标
+            // 缩略预览图：云端 cover 优先，无则默认居家场景图；中央半透明播放按钮
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(140.dp)
-                    .clip(RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp))
-                    .background(ThumbPlaceholderBrush),
+                    .height(160.dp)
+                    .clip(RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                device?.deviceCover?.takeIf { it.isNotBlank() }?.let { cover ->
+                if (hasCover) {
                     AsyncImage(
-                        model = cover,
+                        model = device!!.deviceCover,
                         contentDescription = "设备画面",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
+                } else {
+                    Image(
+                        painter = painterResource(R.drawable.device_scene_placeholder),
+                        contentDescription = "设备画面",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                // 中央半透明播放按钮
+                Surface(
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.35f),
+                    modifier = Modifier.size(46.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Filled.PlayArrow,
+                            contentDescription = "播放",
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
                 }
             }
         }
     }
 }
 
-/** 方形圆角色块功能图标 + 文字标签 + 可选右上角未读角标（统一 Material 矢量图标，白色 24dp 居中，不撑满按钮） */
+/**
+ * 圆润卡通功能图标：彩色圆形背景 + 白色粗线条图标（本地 PNG 资源）。
+ * 图标大小 52dp，下方文字标签，可选右上角未读角标。
+ */
 @Composable
 private fun HomeFuncIcon(
-    icon: ImageVector,
+    iconRes: Int,
     label: String,
-    bgColor: Color,
     badgeCount: Int = 0,
     onClick: () -> Unit
 ) {
@@ -304,21 +385,12 @@ private fun HomeFuncIcon(
         modifier = Modifier.clickable(onClick = onClick)
     ) {
         Box {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = bgColor,
-                modifier = Modifier.size(56.dp)
-            ) {
-                // 图标居中，四周保留内边距，白色统一风格
-                Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(8.dp)) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = label,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
+            Image(
+                painter = painterResource(iconRes),
+                contentDescription = label,
+                modifier = Modifier.size(52.dp),
+                contentScale = ContentScale.Fit
+            )
             if (badgeCount > 0) {
                 Badge(
                     containerColor = BadgeRed,
