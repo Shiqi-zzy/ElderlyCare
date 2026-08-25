@@ -12,10 +12,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.elderlycare.app.data.model.UserRole
+import com.elderlycare.app.ui.community.FollowUpPlanScreen
+import com.elderlycare.app.ui.community.ServiceRecordScreen
+import com.elderlycare.app.ui.community.StaffScheduleScreen
 import com.elderlycare.app.ui.hospital.*
 import com.elderlycare.app.ui.shared.QualificationGate
 import com.elderlycare.app.ui.shared.StaffAlarmScreen
 import com.elderlycare.app.ui.shared.StaffBindingApplyScreen
+import com.elderlycare.app.ui.shared.StaffBindingManageScreen
 
 @Composable
 fun HospitalMainScreen(navController: NavHostController, onLogout: () -> Unit) {
@@ -23,11 +27,12 @@ fun HospitalMainScreen(navController: NavHostController, onLogout: () -> Unit) {
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-
-                hospitalBottomNavItems.forEach { item ->
+            // 欢迎页隐藏底部导航栏
+            val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
+            if (currentRoute != "hospital_welcome") {
+                NavigationBar {
+                    hospitalBottomNavItems.forEach { item ->
                     NavigationBarItem(
                         icon = {
                             Icon(
@@ -41,7 +46,7 @@ fun HospitalMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                         onClick = {
                             if (currentRoute != item.route) {
                                 innerNavController.navigate(item.route) {
-                                    popUpTo(innerNavController.graph.startDestinationId) { saveState = true }
+                                    popUpTo("hospital_emergency") { saveState = true }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
@@ -51,17 +56,30 @@ fun HospitalMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                 }
             }
         }
+    }
     ) { paddingValues ->
         NavHost(
             navController = innerNavController,
-            startDestination = "hospital_emergency",
+            startDestination = "hospital_welcome",
             modifier = Modifier.padding(paddingValues)
         ) {
+            // 医院端欢迎页（点击进入急救大屏，清空欢迎页栈）
+            composable("hospital_welcome") {
+                HospitalWelcomeScreen(
+                    onEnter = {
+                        innerNavController.navigate("hospital_emergency") {
+                            popUpTo("hospital_welcome") { inclusive = true }
+                        }
+                    }
+                )
+            }
             composable("hospital_emergency") {
                 QualificationGate {
                     HospitalEmergencyPanelScreen(
                         onLogout = onLogout,
-                        onUserClick = { elderlyId -> navController.navigate(Screen.UserDetail.createRoute(elderlyId)) }
+                        onUserClick = { elderlyId -> navController.navigate(Screen.UserDetail.createRoute(elderlyId)) },
+                        onNavigateToAlarm = { innerNavController.navigate("hospital_alarm") },
+                        onNavigateToAllEvents = { innerNavController.navigate("hospital_all_events") }
                     )
                 }
             }
@@ -69,7 +87,7 @@ fun HospitalMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                 QualificationGate {
                     HospitalHealthRecordsScreen(
                         onNavigateToDetail = { elderlyId -> navController.navigate(Screen.UserDetail.createRoute(elderlyId)) },
-                        onNavigateToFollowUp = { elderlyId -> innerNavController.navigate(Screen.HospitalFollowUp.createRoute(elderlyId)) },
+                        onNavigateToFollowUp = { innerNavController.navigate("hospital_followup_plan") },
                         onNavigateToAdvice = { elderlyId -> innerNavController.navigate(Screen.HospitalAdvice.createRoute(elderlyId)) },
                         onNavigateToReport = { elderlyId -> innerNavController.navigate(Screen.HospitalReport.createRoute(elderlyId)) },
                         onNavigateToMedicalRemind = { innerNavController.navigate(Screen.HospitalMedicalRemind.route) }
@@ -82,16 +100,46 @@ fun HospitalMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                 }
             }
             composable("hospital_qual") {
-                HospitalQualificationScreen(
-                    onApplyBinding = { innerNavController.navigate("hospital_binding_apply") }
-                )
+                HospitalQualificationScreen()
             }
             composable("hospital_my") {
-                HospitalMyScreen(onLogout = onLogout)
+                HospitalMyScreen(
+                    onLogout = onLogout,
+                    onNavigateToBinding = { innerNavController.navigate("hospital_binding_manage") },
+                    onNavigateToFollowUp = { innerNavController.navigate("hospital_followup_plan") },
+                    onNavigateToSchedule = { innerNavController.navigate("hospital_schedule") },
+                    onNavigateToServiceRecord = { innerNavController.navigate("hospital_service_record") }
+                )
+            }
+            // 随访计划
+            composable("hospital_followup_plan") {
+                FollowUpPlanScreen(onNavigateBack = { innerNavController.popBackStack() })
+            }
+            // 我的排班
+            composable("hospital_schedule") {
+                StaffScheduleScreen(onNavigateBack = { innerNavController.popBackStack() })
+            }
+            // 服务记录
+            composable("hospital_service_record") {
+                ServiceRecordScreen(onNavigateBack = { innerNavController.popBackStack() })
+            }
+            // 全部急救事件
+            composable("hospital_all_events") {
+                HospitalAllEventsScreen(
+                    onNavigateBack = { innerNavController.popBackStack() },
+                    onUserClick = { elderlyId -> navController.navigate(Screen.UserDetail.createRoute(elderlyId)) }
+                )
             }
             // 医院发起绑定申请（内层全屏页，底部栏保持可见，返回 = popBackStack）
             composable("hospital_binding_apply") {
                 StaffBindingApplyScreen(
+                    role = UserRole.HOSPITAL,
+                    onNavigateBack = { innerNavController.popBackStack() }
+                )
+            }
+            // 绑定管理页（三Tab：绑定申请/我的申请/已绑定用户），从「我的」→「绑定用户」进入
+            composable("hospital_binding_manage") {
+                StaffBindingManageScreen(
                     role = UserRole.HOSPITAL,
                     onNavigateBack = { innerNavController.popBackStack() }
                 )

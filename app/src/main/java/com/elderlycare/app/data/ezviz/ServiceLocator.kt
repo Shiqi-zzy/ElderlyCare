@@ -9,6 +9,7 @@ import com.elderlycare.app.data.binding.BindingDao
 import com.elderlycare.app.data.binding.BindingDatabase
 import com.elderlycare.app.data.binding.BindingRepository
 import com.elderlycare.app.data.binding.SeedData
+import com.elderlycare.app.data.community.CommunityRepository
 import com.elderlycare.app.data.local.ElderlyProfileStore
 import com.elderlycare.app.data.local.FamilyUserStore
 import com.elderlycare.app.data.local.SettingsStore
@@ -76,6 +77,10 @@ object ServiceLocator {
     lateinit var broadcastManager: EZCloudBroadcastManager
         private set
     lateinit var messageRepository: MessageRepository
+        private set
+
+    /** 社区端业务仓库（随访/排班/服务记录/待办事项） */
+    lateinit var communityRepository: CommunityRepository
         private set
 
     // ===== 提醒计划（萤石 v3 设备本地闹铃 REST + Room）=====
@@ -191,6 +196,12 @@ object ServiceLocator {
             reminderApi = reminderApi,
             ezvizRepository = repository,
             rtcBackendApi = rtcBackendApi
+        )
+
+        // ===== 社区端业务（随访/排班/服务记录/待办事项）=====
+        communityRepository = CommunityRepository(
+            dao = appDatabase.communityDao(),
+            messageRepository = messageRepository
         )
 
         initialized = true

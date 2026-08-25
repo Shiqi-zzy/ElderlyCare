@@ -4,6 +4,11 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.elderlycare.app.data.community.CommunityDao
+import com.elderlycare.app.data.community.CommunityFollowUpRecord
+import com.elderlycare.app.data.community.ServiceRecord
+import com.elderlycare.app.data.community.StaffScheduleRecord
+import com.elderlycare.app.data.community.TodoItem
 import com.elderlycare.app.data.hospital.HealthAdvice
 import com.elderlycare.app.data.hospital.HealthAdviceDao
 import com.elderlycare.app.data.hospital.MedicalFollowUpDao
@@ -24,6 +29,8 @@ import com.elderlycare.app.data.reminder.RemindPlanDao
  * - v5：医院端业务——新增 medical_follow_up_record（医疗随访）、health_advice
  *   （健康建议）两张表；remind_plan 表新增 source 列（0=家属/1=医院本地提醒/
  *   2=医院设备播报），见 AppMigrations.MIGRATION_4_5
+ * - v6：社区端业务——新增 community_follow_up（社区随访）、staff_schedule（排班）、
+ *   service_record（服务记录）、todo_item（待办事项）四张表，见 AppMigrations.MIGRATION_5_6
  * 后续新增表/字段时在此处 +1 并写 Migration。
  * 注意：只有降级兜底（fallbackToDestructiveMigrationOnDowngrade），
  * 升级必须写 Migration，否则旧数据升级崩溃。
@@ -33,9 +40,13 @@ import com.elderlycare.app.data.reminder.RemindPlanDao
         MessageEntity::class,
         RemindPlanEntity::class,
         MedicalFollowUpRecord::class,
-        HealthAdvice::class
+        HealthAdvice::class,
+        CommunityFollowUpRecord::class,
+        StaffScheduleRecord::class,
+        ServiceRecord::class,
+        TodoItem::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -47,6 +58,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun medicalFollowUpDao(): MedicalFollowUpDao
 
     abstract fun healthAdviceDao(): HealthAdviceDao
+
+    abstract fun communityDao(): CommunityDao
 
     companion object {
         private const val DB_NAME = "elderly_care.db"
@@ -70,7 +83,8 @@ abstract class AppDatabase : RoomDatabase() {
                         AppMigrations.MIGRATION_1_2,
                         AppMigrations.MIGRATION_2_3,
                         AppMigrations.MIGRATION_3_4,
-                        AppMigrations.MIGRATION_4_5
+                        AppMigrations.MIGRATION_4_5,
+                        AppMigrations.MIGRATION_5_6
                     )
                     .build()
                     .also { instance = it }

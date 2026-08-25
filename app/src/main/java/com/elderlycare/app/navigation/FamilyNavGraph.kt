@@ -15,6 +15,7 @@ import com.elderlycare.app.data.binding.BindingRepository
 import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.ui.family.FamilyHomeScreen
 import com.elderlycare.app.ui.family.MyScreen
+import com.elderlycare.app.ui.login.WelcomeScreen
 import com.elderlycare.app.ui.message.MessageCenterScreen
 import com.elderlycare.app.ui.reports.ReportsScreen
 import com.elderlycare.app.ui.reminder.RemindPlanCalendarScreen
@@ -37,11 +38,12 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
 
     Scaffold(
         bottomBar = {
-            NavigationBar {
-                val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-
-                familyBottomNavItems.forEach { item ->
+            // 欢迎页隐藏底部导航栏
+            val navBackStackEntry by innerNavController.currentBackStackEntryAsState()
+            val currentRoute = navBackStackEntry?.destination?.route
+            if (currentRoute != "family_welcome") {
+                NavigationBar {
+                    familyBottomNavItems.forEach { item ->
                     NavigationBarItem(
                         icon = {
                             val showBadge = item.route == "messages" && globalUnread > 0
@@ -84,12 +86,19 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                 }
             }
         }
+    }
     ) { paddingValues ->
         NavHost(
             navController = innerNavController,
-            startDestination = "home",
+            startDestination = "family_welcome",
             modifier = Modifier.padding(paddingValues)
         ) {
+            // 家属端欢迎页（点击进入首页）
+            composable("family_welcome") {
+                WelcomeScreen(
+                    onEnter = { innerNavController.navigate("home") }
+                )
+            }
             composable("home") {
                 val scope = rememberCoroutineScope()
                 FamilyHomeScreen(

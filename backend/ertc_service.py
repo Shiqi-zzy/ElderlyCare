@@ -13,6 +13,7 @@
 参考: https://icnopen.ezviz.com/help/4919
 """
 import json
+import logging
 import os
 import time
 import threading
@@ -27,6 +28,32 @@ from config import (
     EZVIZ_RTC_APP_KEY,
     EZVIZ_RTC_APP_SECRET,
 )
+
+# 萤石调用落盘日志（证据用）：记录每一次真实发往 open.ys7.com 的请求
+_LOG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs")
+os.makedirs(_LOG_DIR, exist_ok=True)
+_call_logger = logging.getLogger("ezviz_calls")
+_call_logger.setLevel(logging.INFO)
+if not _call_logger.handlers:
+    _fh = logging.FileHandler(os.path.join(_LOG_DIR, "ezviz_calls.log"), encoding="utf-8")
+    _fh.setFormatter(logging.Formatter("%(asctime)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+    _call_logger.addHandler(_fh)
+
+
+def _log_call(method: str, path: str, result: dict) -> None:
+    """把一次真实萤石调用追加到日志（成功/失败都记）。
+
+    service 系接口返回 {meta:{code,message},...}，lapp 系返回 {code,msg,...}，两种都兼容。
+    """
+    meta = result.get("meta") or {}
+    code = meta.get("code")
+    message = meta.get("message") or meta.get("msg") or ""
+    if code is None:
+        code = result.get("code")
+    if not message:
+        message = result.get("msg") or ""
+    _call_logger.info(f"{method} | {path} | code={code} | {message}")
+
 
 # accessToken 内存缓存（过期自动刷新）
 _token_cache = {"token": None, "expire_ms": 0}
@@ -59,6 +86,8 @@ def _get_access_token() -> Optional[str]:
         except Exception as e:
             print(f"[ERTC] 获取 accessToken 异常: {e}")
             return None
+
+        _log_call("POST", "/api/lapp/token/get", result)
 
         data = result.get("data") or {}
         token = data.get("accessToken")
@@ -96,12 +125,16 @@ def _post_service(path: str, form: Optional[dict] = None, headers: Optional[dict
     req = urllib.request.Request(url, data=body, headers=req_headers, method="POST")
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            result = json.loads(resp.read().decode("utf-8"))
+            _log_call("POST", path, result)
+            return result
     except urllib.error.HTTPError as e:
         raw = e.read().decode("utf-8", errors="replace")
         print(f"[ERTC] {path} HTTP {e.code}: {raw}")
         try:
-            return json.loads(raw)
+            result = json.loads(raw)
+            _log_call("POST", path, result)
+            return result
         except Exception:
             return {"meta": {"code": e.code, "message": raw}, "data": None}
     except Exception as e:
@@ -125,12 +158,16 @@ def _post_json(path: str, payload: dict) -> dict:
     )
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            result = json.loads(resp.read().decode("utf-8"))
+            _log_call("POST", path, result)
+            return result
     except urllib.error.HTTPError as e:
         raw = e.read().decode("utf-8", errors="replace")
         print(f"[ERTC] {path} HTTP {e.code}: {raw}")
         try:
-            return json.loads(raw)
+            result = json.loads(raw)
+            _log_call("POST", path, result)
+            return result
         except Exception:
             return {"meta": {"code": e.code, "message": raw}, "data": None}
     except Exception as e:
@@ -276,13 +313,16 @@ def capture_device(device_serial: str, channel_no: int = 1) -> dict:
         raw = e.read().decode("utf-8", errors="replace")
         print(f"[ERTC] capture HTTP {e.code}: {raw}")
         try:
-            return json.loads(raw)
+            result = json.loads(raw)
+            _log_call("POST", "/api/lapp/device/capture", result)
+            return result
         except Exception:
             return {"code": e.code, "msg": raw, "data": None}
     except Exception as e:
         print(f"[ERTC] capture 请求异常: {e}")
         return {"code": -1, "msg": str(e), "data": None}
     print(f"[ERTC] capture 响应: {result}")
+    _log_call("POST", "/api/lapp/device/capture", result)
     return result
 
 

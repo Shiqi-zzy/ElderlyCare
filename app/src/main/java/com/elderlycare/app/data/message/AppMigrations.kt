@@ -133,4 +133,90 @@ object AppMigrations {
             )
         }
     }
+
+    /**
+     * v5→v6：社区端业务——新增 community_follow_up（社区随访）、staff_schedule（排班）、
+     * service_record（服务记录）、todo_item（待办事项）四张表。
+     * 表结构必须与对应实体声明完全一致。
+     */
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `community_follow_up` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `elderlyId` TEXT NOT NULL,
+                    `elderlyName` TEXT NOT NULL,
+                    `staffId` TEXT NOT NULL,
+                    `followUpType` TEXT NOT NULL,
+                    `scheduledTime` INTEGER NOT NULL,
+                    `content` TEXT NOT NULL,
+                    `status` TEXT NOT NULL,
+                    `createdAt` INTEGER NOT NULL,
+                    `completedAt` INTEGER
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_community_follow_up_elderlyId` ON `community_follow_up` (`elderlyId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_community_follow_up_staffId` ON `community_follow_up` (`staffId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_community_follow_up_scheduledTime` ON `community_follow_up` (`scheduledTime`)")
+
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `staff_schedule` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `staffId` TEXT NOT NULL,
+                    `title` TEXT NOT NULL,
+                    `scheduleDate` INTEGER NOT NULL,
+                    `startTime` TEXT NOT NULL,
+                    `endTime` TEXT NOT NULL,
+                    `location` TEXT NOT NULL,
+                    `status` TEXT NOT NULL,
+                    `createdAt` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_staff_schedule_staffId` ON `staff_schedule` (`staffId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_staff_schedule_scheduleDate` ON `staff_schedule` (`scheduleDate`)")
+
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `service_record` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `staffId` TEXT NOT NULL,
+                    `elderlyId` TEXT NOT NULL,
+                    `elderlyName` TEXT NOT NULL,
+                    `serviceType` TEXT NOT NULL,
+                    `content` TEXT NOT NULL,
+                    `durationMinutes` INTEGER NOT NULL,
+                    `createdAt` INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_service_record_staffId` ON `service_record` (`staffId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_service_record_elderlyId` ON `service_record` (`elderlyId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_service_record_createdAt` ON `service_record` (`createdAt`)")
+
+            db.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `todo_item` (
+                    `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    `staffId` TEXT NOT NULL,
+                    `elderlyId` TEXT NOT NULL,
+                    `elderlyName` TEXT NOT NULL,
+                    `todoType` TEXT NOT NULL,
+                    `title` TEXT NOT NULL,
+                    `content` TEXT NOT NULL,
+                    `priority` TEXT NOT NULL,
+                    `status` TEXT NOT NULL,
+                    `createdAt` INTEGER NOT NULL,
+                    `completedAt` INTEGER
+                )
+                """.trimIndent()
+            )
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_todo_item_staffId` ON `todo_item` (`staffId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_todo_item_elderlyId` ON `todo_item` (`elderlyId`)")
+            db.execSQL("CREATE INDEX IF NOT EXISTS `index_todo_item_status` ON `todo_item` (`status`)")
+        }
+    }
 }
