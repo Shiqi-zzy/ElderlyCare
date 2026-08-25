@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 简单的心形/关爱图标 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,72 C54,72 38,58 30,50 C22,42 18,36 18,28 C18,20 24,16 30,16 C34,16 38,18 42,22 L42,22 C42,22 48,28 54,35 C60,28 66,22 66,22 L66,22 C70,18 74,16 78,16 C84,16 90,20 90,28 C90,36 86,42 78,50 C70,58 54,72 54,72 Z" />
+</vector>

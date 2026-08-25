@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧养老平台 - 萤视Pro</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- Toast 通知容器 -->
+<!-- ════════════════════════════════════════════════ -->
+<div id="toast-container" class="toast-container"></div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- 模态框容器 -->
+<!-- ════════════════════════════════════════════════ -->
+<div id="modal-container"></div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- 登录页 -->
+<!-- ════════════════════════════════════════════════ -->
+<div id="login-page">
+    <div class="login-container">
+        <h1>🏠 智慧养老平台</h1>
+        <p class="subtitle">萤视Pro · 四端口权限体系</p>
+
+        <!-- 登录表单 -->
+        <form id="login-form" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label>手机号</label>
+                <input type="tel" id="login-phone" placeholder="11位手机号" required minlength="11" maxlength="11">
+            </div>
+            <div class="form-group">
+                <label>登录角色</label>
+                <select id="login-role">
+                    <option value="family">家属</option>
+                    <option value="community">社区工作人员</option>
+                    <option value="hospital">医护人员</option>
+                    <option value="admin">管理员</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>验证码</label>
+                <div style="display:flex;gap:8px;">
+                    <input type="text" id="login-code" placeholder="6位验证码" required minlength="6" maxlength="6">
+                    <button type="button" id="send-code-btn" class="btn btn-outline" onclick="handleSendCode()">获取验证码</button>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">登 录</button>
+        </form>
+
+        <div style="text-align:center;margin:16px 0;color:var(--text-muted);font-size:12px;">
+            首次登录（手机号 + 验证码 + 角色）将自动创建对应角色账号，无需单独注册
+        </div>
+
+        <div style="margin-top:20px;padding:12px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-muted);">
+            <strong>测试账号（手机号 / 验证码，验证码统一 123456）：</strong><br>
+            家属: 13800001111 / 123456<br>
+            社区: 13800002222 / 123456<br>
+            医院: 13800003333 / 123456<br>
+            管理员: 13800000000 / 123456
+        </div>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- 应用容器（登录后显示）-->
+<!-- ════════════════════════════════════════════════ -->
+<div id="app-container" class="hidden">
+
+    <!-- 顶部导航栏 -->
+    <div class="topbar">
+        <div class="brand">🏠 智慧养老 · 萤视Pro</div>
+        <div class="user-info">
+            <span class="text-muted" style="font-size:13px;" id="ws-status">⚫ 未连接</span>
+            <span id="topbar-username" style="font-weight:500;"></span>
+            <span id="topbar-role" class="role-badge"></span>
+            <button class="btn btn-outline btn-sm" onclick="logout()">退出</button>
+        </div>
+    </div>
+
+    <!-- ═══════════ 家属端 ═══════════ -->
+    <div id="family_page" class="hidden">
+        <div class="container">
+            <!-- 子导航 -->
+            <div class="flex gap-16" style="margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:8px;">
+                <button class="btn btn-outline btn-sm family-nav-btn" data-target="family-dashboard" style="border-bottom:2px solid var(--primary);">📊 控制台</button>
+                <button class="btn btn-outline btn-sm family-nav-btn" data-target="family-alarms">🔔 告警中心</button>
+                <button class="btn btn-outline btn-sm family-nav-btn" data-target="family-auth">🔐 授权管理</button>
+                <button class="btn btn-outline btn-sm family-nav-btn" data-target="family-health">📋 健康档案</button>
+            </div>
+
+            <!-- 控制台 -->
+            <div id="family-dashboard" class="family-page-section">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">👴 我的老人</span>
+                        <button class="btn btn-primary btn-sm" onclick="document.getElementById('add-elderly-form').classList.toggle('hidden')">+ 添加老人</button>
+                    </div>
+                    <!-- 添加老人表单 -->
+                    <div id="add-elderly-form" class="hidden" style="margin-bottom:16px;padding:16px;background:var(--bg);border-radius:8px;">
+                        <form onsubmit="handleAddElderly(event)">
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                                <div class="form-group"><label>姓名*</label><input type="text" id="new-elderly-name" required></div>
+                                <div class="form-group"><label>性别</label><select id="new-elderly-gender"><option value="">请选择</option><option value="M">男</option><option value="F">女</option></select></div>
+                                <div class="form-group"><label>出生日期</label><input type="date" id="new-elderly-birth"></div>
+                                <div class="form-group"><label>手机号</label><input type="tel" id="new-elderly-phone"></div>
+                                <div class="form-group"><label>地址</label><input type="text" id="new-elderly-address"></div>
+                                <div class="form-group"><label>紧急联系人</label><input type="tel" id="new-elderly-emergency"></div>
+                                <div class="form-group"><label>护理等级</label><select id="new-elderly-care"><option value="自理">自理</option><option value="半自理">半自理</option><option value="全护理">全护理</option></select></div>
+                                <div class="form-group"><label>病史备注</label><input type="text" id="new-elderly-medical"></div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm mt-8">确认添加</button>
+                        </form>
+                    </div>
+                    <div id="elderly-list"></div>
+                    <div id="elderly-empty" class="text-muted" style="text-align:center;padding:20px;">暂无老人档案，点击上方按钮添加</div>
+                </div>
+
+                <!-- 快捷操作 -->
+                <div class="card">
+                    <div class="card-header"><span class="card-title">⚡ 快捷操作</span></div>
+                    <div class="flex gap-8">
+                        <button class="btn btn-primary btn-sm" onclick="simulateAlarm()">🔬 模拟AI告警</button>
+                        <button class="btn btn-outline btn-sm" id="privacy-toggle-btn" onclick="pauseMonitoring(currentElderlyId)">⏸ 暂停监控</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 告警中心 -->
+            <div id="family-alarms" class="family-page-section hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">🔔 告警列表</span>
+                        <button class="btn btn-primary btn-sm" onclick="simulateAlarm()">模拟触发告警</button>
+                    </div>
+                    <div id="alarm-list"></div>
+                </div>
+            </div>
+
+            <!-- 授权管理 -->
+            <div id="family-auth" class="family-page-section hidden">
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">🔐 数据授权记录</span>
+                        <button class="btn btn-primary btn-sm" onclick="showGrantAuthModal()">+ 新增授权</button>
+                    </div>
+                    <div id="auth-list"></div>
+                    <div class="text-muted mt-8" style="font-size:12px;">
+                        ⚠ 授权后可随时撤销 · 社区默认仅告警视频 · 医院默认仅医疗数据 · 有效期可自定义
+                    </div>
+                </div>
+            </div>
+
+            <!-- 健康档案（Phase 3） -->
+            <div id="family-health" class="family-page-section hidden">
+                <div class="card">
+                    <div class="card-header"><span class="card-title">📋 健康档案</span></div>
+                    <div id="family-health-list">
+                        <div class="text-muted" style="text-align:center;padding:20px;">请先在控制台选择老人，再查看健康档案</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ 社区端 ═══════════ -->
+    <div id="community_page" class="hidden">
+        <div class="container">
+            <h2 style="margin-bottom:16px;">🏘 社区工作台</h2>
+            <div id="community-stats" class="stats-row"></div>
+
+            <div class="card">
+                <div class="card-header"><span class="card-title">📋 待处理工单</span></div>
+                <table class="data-table"><thead><tr><th>标题</th><th>优先级</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody id="community-order-list"></tbody></table>
+            </div>
+
+            <div class="card">
+                <div class="card-header"><span class="card-title">👴 绑定老人台账（脱敏展示）</span></div>
+                <table class="data-table"><thead><tr><th>姓名</th><th>性别</th><th>护理等级</th><th>地址</th></tr></thead>
+                <tbody id="community-elderly-list"></tbody></table>
+            </div>
+
+            <!-- 设备管理（Phase 3） -->
+            <div class="card">
+                <div class="card-header"><span class="card-title">📹 设备管理</span></div>
+                <div class="flex gap-8" style="align-items:end;">
+                    <div class="form-group" style="flex:1;margin-bottom:0;"><input type="text" id="community-device-code" placeholder="输入6位验证码"></div>
+                    <button class="btn btn-primary btn-sm" onclick="bindCommunityDevice()">绑定设备</button>
+                </div>
+                <div class="form-group mt-8"><label>按老人查看设备</label><select id="community-device-elderly-select" onchange="loadCommunityDevices()"><option value="">-- 请选择 --</option></select></div>
+                <div id="community-device-list" class="mt-8"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ 医院端 ═══════════ -->
+    <div id="hospital_page" class="hidden">
+        <div class="container">
+            <h2 style="margin-bottom:16px;">🏥 医院工作台</h2>
+            <div id="hospital-stats" class="stats-row"></div>
+
+            <!-- 绑定老人 -->
+            <div class="card">
+                <div class="card-header"><span class="card-title">👴 绑定老人</span></div>
+                <div id="hospital-elderly-list"></div>
+            </div>
+
+            <!-- 急救权限 -->
+            <div class="card">
+                <div class="card-header"><span class="card-title">🚨 急救临时监控权限</span></div>
+                <div id="hospital-emergency-status">
+                    <span class="text-muted">加载中...</span>
+                </div>
+                <div id="hospital-emergency-form" class="mt-8" style="padding:12px;background:var(--bg);border-radius:8px;">
+                    <div class="form-group"><label>选择老人</label><select id="emergency-elderly-select"><option value="">-- 请选择 --</option></select></div>
+                    <div class="form-group"><label>急救理由</label><input type="text" id="emergency-reason" placeholder="如：老人突发胸痛需紧急查看体征数据"></div>
+                    <button class="btn btn-danger btn-sm" onclick="requestEmergency()">发起急救权限请求（24小时）</button>
+                </div>
+            </div>
+
+            <!-- 健康档案 -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="card-title">📋 健康档案</span>
+                    <button class="btn btn-primary btn-sm" onclick="showAddHealthRecordModal()">+ 录入档案</button>
+                </div>
+                <div class="form-group"><label>选择老人查看档案</label><select id="health-elderly-select" onchange="loadHospitalHealthRecords()"><option value="">-- 请选择 --</option></select></div>
+                <div id="hospital-health-list">
+                    <div class="text-muted" style="text-align:center;padding:20px;">请选择老人后查看健康档案</div>
+                </div>
+            </div>
+
+            <!-- 设备管理 -->
+            <div class="card">
+                <div class="card-header"><span class="card-title">📹 设备绑定</span></div>
+                <div class="flex gap-8" style="align-items:end;">
+                    <div class="form-group" style="flex:1;margin-bottom:0;"><input type="text" id="hospital-device-code" placeholder="输入6位验证码"></div>
+                    <button class="btn btn-primary btn-sm" onclick="bindHospitalDevice()">绑定</button>
+                </div>
+                <div id="hospital-device-list" class="mt-8"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════ 管理端 ═══════════ -->
+    <div id="admin_page" class="hidden">
+        <div class="container">
+            <h2 style="margin-bottom:16px;">⚙ 系统管理（Phase 4 大数据分析）</h2>
+            <div id="admin-stats" class="stats-row"></div>
+
+            <!-- Phase 4: 告警趋势 -->
+            <div class="card">
+                <div class="card-header"><span class="card-title">📈 近30天告警趋势</span></div>
+                <div id="admin-alarm-trend" style="max-height:200px;overflow-y:auto;">
+                    <span class="text-muted">加载中...</span>
+                </div>
+            </div>
+
+            <!-- Phase 4: Top告警老人 -->
+            <div class="card">
+                <div class="card-header"><span class="card-title">⚠ 告警最多的老人（Top 10）</span></div>
+                <div id="admin-top-elderly">
+                    <span class="text-muted">加载中...</span>
+                </div>
+            </div>
+
+            <!-- Phase 4: 健康报告快速查询 -->
+            <div class="card">
+                <div class="card-header"><span class="card-title">🏥 AI 健康报告查询</span></div>
+                <div class="flex gap-8" style="align-items:end;">
+                    <div class="form-group" style="flex:1;margin-bottom:0;">
+                        <input type="text" id="admin-health-elderly-id" placeholder="输入老人ID">
+                    </div>
+                    <button class="btn btn-primary btn-sm" onclick="lookupHealthReport()">查看健康报告</button>
+                </div>
+                <div id="admin-health-report" class="mt-8"></div>
+            </div>
+
+            <!-- 审计日志 -->
+            <div class="card">
+                <div class="card-header"><span class="card-title">📝 审计日志（最近20条）</span></div>
+                <table class="data-table"><thead><tr><th>事件类型</th><th>操作人</th><th>目标类型</th><th>目标ID</th><th>时间</th></tr></thead>
+                <tbody id="admin-audit-list"></tbody></table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ════════════════════════════════════════════════ -->
+<!-- JavaScript -->
+<!-- ════════════════════════════════════════════════ -->
+<script src="js/api.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/portal_router.js"></script>
+<script src="js/family_dashboard.js"></script>
+
+<script>
+// ── 添加老人 ──
+async function handleAddElderly(event) {
+    event.preventDefault();
+    const data = {
+        name: document.getElementById('new-elderly-name').value,
+        gender: document.getElementById('new-elderly-gender').value,
+        birth_date: document.getElementById('new-elderly-birth').value,
+        phone: document.getElementById('new-elderly-phone').value,
+        address: document.getElementById('new-elderly-address').value,
+        emergency_contact: document.getElementById('new-elderly-emergency').value,
+        care_level: document.getElementById('new-elderly-care').value,
+        medical_history: document.getElementById('new-elderly-medical').value
+    };
+    try {
+        await api.createElderly(data);
+        showToast('老人档案创建成功', 'success');
+        document.getElementById('add-elderly-form').classList.add('hidden');
+        loadElderlyList();
+    } catch (e) {
+        showToast('创建失败: ' + e.message, 'error');
+    }
+}
+
+// ── WebSocket 实时推送 ──
+let ws = null;
+function connectWebSocket() {
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    ws = new WebSocket(`ws://localhost:8002/api/ws/live?token=${token}`);
+
+    ws.onopen = () => {
+        document.getElementById('ws-status').innerHTML = '🟢 实时连接';
+        console.log('[WS] 已连接');
+    };
+
+    ws.onmessage = (event) => {
+        try {
+            const msg = JSON.parse(event.data);
+            console.log('[WS] 收到:', msg);
+
+            if (msg.type === 'alarm_new') {
+                showToast(`🚨 ${msg.data.alarm_level} 告警: ${msg.data.title}`, 'info');
+                if (currentElderlyId && msg.data.elderly_id === currentElderlyId) {
+                    loadAlarms(currentElderlyId);
+                }
+            } else if (msg.type === 'work_order_update') {
+                showToast(`📋 工单状态更新: ${msg.data.title}`, 'info');
+            } else if (msg.type === 'device_status') {
+                showToast(`📡 设备 ${msg.data.device_name}: ${msg.data.status}`, 'info');
+            } else if (msg.type === 'monitoring_access') {
+                showToast(`👁 ${msg.data.message}`, 'info');
+            }
+        } catch (e) {}
+    };
+
+    ws.onclose = () => {
+        document.getElementById('ws-status').innerHTML = '🔴 已断开';
+        // 自动重连
+        setTimeout(connectWebSocket, 5000);
+    };
+
+    ws.onerror = () => {
+        document.getElementById('ws-status').innerHTML = '🔴 连接失败';
+    };
+}
+
+// ── 页面初始化 ──
+document.addEventListener('DOMContentLoaded', async () => {
+    if (checkAuth()) {
+        await loadCurrentUser();
+        if (currentUser) {
+            initPortalByRole(currentUser.role);
+            connectWebSocket();
+        }
+    }
+
+    // 定时发送 WebSocket 心跳
+    setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send('ping');
+        }
+    }, 30000);
+});
+</script>
+
+</body>
+</html>

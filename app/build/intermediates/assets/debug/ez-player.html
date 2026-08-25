@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<!-- 移动端视口：适配 Android WebView，禁止用户缩放 -->
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=0">
+<title>EZUIKit 播放器</title>
+<!-- 萤石官方 EZUIKit 1.x SDK（与 HTML 同目录，勿内联） -->
+<script src="./ezuikit.js"></script>
+<style>
+html, body {
+    padding: 0;
+    margin: 0;
+    text-align: center;
+    background: #000000; /* 黑色背景，视频 16:9 占满宽度 */
+    overflow: hidden;
+}
+/* 参数校验失败 / 播放器运行错误时的可见提示条（Android 真机上 console 不可见，方便联调） */
+#errTip {
+    display: none;
+    position: fixed;
+    left: 0; right: 0; top: 0;
+    z-index: 9999;
+    padding: 10px 12px;
+    font: 13px/1.5 sans-serif;
+    color: #ffffff;
+    background: rgba(220, 38, 38, 0.92);
+    text-align: left;
+    word-break: break-all;
+}
+/* 正常流程状态提示条（初始化 / 连接取流 / 播放成功），播放成功后自动隐藏 */
+#statusTip {
+    display: none;
+    position: fixed;
+    left: 0; right: 0; top: 0;
+    z-index: 9998;
+    padding: 10px 12px;
+    font: 13px/1.5 sans-serif;
+    color: #ffffff;
+    background: rgba(15, 23, 42, 0.85);
+    text-align: left;
+    word-break: break-all;
+}
+</style>
+</head>
+<body>
+<div id="playWind"></div>
+<div id="statusTip"></div>
+<div id="errTip"></div>
+<script>
+(function () {
+    'use strict';
+
+    /* =====================================================================
+     * 播放参数全部来自 Android WebView 加载本页时的 URL query（禁止硬编码）：
+     *
+     *   mode         字符串，live = 实时预览；rec = 录像回放（必填）
+     *   deviceSerial 设备序列号，如 "BK9267115"（必填）
+     *   channelNo    通道号，数字字符串，如 "1"（必填）
+     *   accessToken  萤石开放平台 accessToken（at 开头，必填）
+     *   begin        [仅 rec] 回放开始时间，秒级 Unix 时间戳（必填）
+     *   end          [仅 rec] 回放结束时间，秒级 Unix 时间戳（必填）
+     *   url          [可选] API 返回的原始 ezopen:// 完整地址（加密设备自带验证码）。
+     *                提供时优先原样使用，不按上述规则重拼 —— App 建议始终携带。
+     *   verifyCode   [可选] 设备视频加密验证码。仅当未提供 url、按规则重拼地址时，
+     *                作为 verificationCode 配置传给 SDK。
+     *
+     * WebView 加载示例：
+     *   file:///android_asset/ez-player.html?mode=live&deviceSerial=xxx&channelNo=1&accessToken=at.xxx
+     *   file:///android_asset/ez-player.html?mode=rec&deviceSerial=xxx&channelNo=1&accessToken=at.xxx&begin=1755000000&end=1755003600
+     *   file:///android_asset/ez-player.html?mode=live&deviceSerial=xxx&channelNo=1&accessToken=at.xxx&url=ezopen%3A%2F%2F...
+     * ===================================================================== */
+
+    /* ---------- 1. 解析 URL query（手写解析，兼容 file:// 与低版本 WebView，不依赖 URLSearchParams） ---------- */
+    function parseQuery(search) {
+        var result = {};
+        if (!search || search.charAt(0) !== '?') return result;
+        var pairs = search.substring(1).split('&');
+        for (var i = 0; i < pairs.length; i++) {
+            var kv = pairs[i].split('=');
+            if (kv.length >= 2 && kv[0]) {
+                var key = decodeURIComponent(kv[0]);
+                var val = decodeURIComponent(kv.slice(1).join('='));
+                result[key] = val;
+            }
+        }
+        return result;
+    }
+    var params = parseQuery(window.location.search);
+
+    var mode = params.mode;
+    var deviceSerial = params.deviceSerial;
+    var channelNo = params.channelNo;
+    var accessToken = params.accessToken;
+    var begin = params.begin;   // 仅 rec 使用
+    var end = params.end;       // 仅 rec 使用
+    var rawUrl = params.url;            // 可选：API 原始 ezopen:// 完整地址，优先使用
+    var verifyCode = params.verifyCode; // 可选：加密验证码（仅在按规则重拼地址时使用）
+
+    /* ---------- 2. 错误提示：console.error（Android 可捕获 console 日志）+ 页面可见红色提示条 ---------- */
+    var errTipEl = document.getElementById('errTip');
+    function showError(msg) {
+        console.error('[ez-player] ' + msg);
+        if (errTipEl) {
+            errTipEl.style.display = 'block';
+            errTipEl.textContent = msg;
+        }
+    }
+    function hideError() {
+        if (errTipEl) errTipEl.style.display = 'none';
+    }
+    // 正常流程状态提示（初始化/连接/播放中），Android 真机上肉眼可辨当前卡在哪一步
+    var statusTipEl = document.getElementById('statusTip');
+    function showStatus(msg) {
+        console.log('[ez-player] ' + msg);
+        if (statusTipEl) {
+            statusTipEl.style.display = 'block';
+            statusTipEl.textContent = msg;
+        }
+    }
+    function hideStatus() {
+        if (statusTipEl) statusTipEl.style.display = 'none';
+    }
+    // 萤石播放器常见错误码 → 用户可读的友好提示
+    function friendlyError(text) {
+        if (text.indexOf('5402') !== -1 || text.indexOf('未找到录像片段') !== -1) {
+            return '该时段设备没有录像（可能未安装存储卡或设备未录像），请选择其他日期再试';
+        }
+        if (text.indexOf('60019') !== -1) {
+            return '设备已开启视频加密，请确认验证码正确（设备标签上的6位大写字母）';
+        }
+        if (text.indexOf('60020') !== -1 || text.indexOf('离线') !== -1) {
+            return '设备不在线，请确认设备已开机并连接网络后重试';
+        }
+        return text;
+    }
+    // EZUIKit 用 WebGL 渲染视频帧，WebView 不支持时提前给出明确错误
+    function webglSupported() {
+        try {
+            var c = document.createElement('canvas');
+            return !!(c.getContext('webgl') || c.getContext('experimental-webgl'));
+        } catch (e) { return false; }
+    }
+    // 脚本级异常也走 console.error，便于 Android 捕获
+    window.onerror = function (msg, src, line) {
+        console.error('[ez-player] window.onerror: ' + msg + ' @' + src + ':' + line);
+    };
+
+    /* ---------- 3. 参数校验：不通过则只报错，不初始化播放器 ---------- */
+    function validate() {
+        if (mode !== 'live' && mode !== 'rec') {
+            showError('参数 mode 缺失或非法（应为 live 或 rec），当前值: ' + mode);
+            return false;
+        }
+        if (!deviceSerial) { showError('缺少参数 deviceSerial（设备序列号）'); return false; }
+        if (!channelNo) { showError('缺少参数 channelNo（通道号）'); return false; }
+        if (!accessToken) { showError('缺少参数 accessToken（萤石开放平台 accessToken）'); return false; }
+        if (mode === 'rec') {
+            // 回放必须携带 begin/end 秒级 Unix 时间戳
+            if (!begin || !end || !/^\d{9,13}$/.test(begin) || !/^\d{9,13}$/.test(end)) {
+                showError('mode=rec 时缺少或非法参数 begin/end（秒级 Unix 时间戳），begin=' + begin + ' end=' + end);
+                return false;
+            }
+            if (Number(begin) >= Number(end)) {
+                showError('回放时间非法：begin 必须小于 end，begin=' + begin + ' end=' + end);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /* ---------- 4. 拼接完整 ezopen 播放 url ---------- */
+    var ezopenUrl = null;
+    var useRawUrl = false;
+    if (validate()) {
+        if (rawUrl) {
+            // App 提供了 API 返回的原始地址（加密设备自带验证码），原样使用
+            ezopenUrl = rawUrl;
+            useRawUrl = true;
+        } else {
+            ezopenUrl = (mode === 'live')
+                ? 'ezopen://' + deviceSerial + '/' + channelNo + '.live'                       // 实时预览
+                : 'ezopen://' + deviceSerial + '/' + channelNo + '.rec?begin=' + begin + '&end=' + end; // 录像回放
+        }
+        console.log('[ez-player] ezopen url: ' + ezopenUrl + ' | template: ' + (mode === 'live' ? 'mobileLive' : 'mobileRec') + (useRawUrl ? ' | 使用 url 参数' : ''));
+    }
+
+    /* ---------- 5. 播放器初始化（保持萤石官方模板 mobileLive/mobileRec 与全部 UI 控件） ---------- */
+    var EZOPENDemo = null; // 播放器实例，挂载到 window 供 Android evaluateJavascript 调用 play()/stop()/capturePicture() 等
+    window.EZOPENDemo = EZOPENDemo;
+
+    function currentSize() {
+        var width = document.documentElement.clientWidth;
+        return { width: width, height: Math.floor(width * 9 / 16) }; // 16:9
+    }
+
+    function initPlayer() {
+        if (!ezopenUrl) return; // 参数校验未通过，不初始化
+        if (!webglSupported()) {
+            showError('当前 WebView 不支持 WebGL，无法解码视频，请更新系统 WebView 组件后重试');
+            return;
+        }
+        // 重建前先停掉旧实例，避免重复拉流
+        if (EZOPENDemo && typeof EZOPENDemo.stop === 'function') {
+            try { EZOPENDemo.stop(); } catch (e) { /* 忽略旧实例清理异常 */ }
+        }
+        var size = currentSize();
+        try {
+            var playerOptions = {
+                id: 'playWind',
+                width: size.width,
+                height: size.height,
+                template: (mode === 'live') ? 'mobileLive' : 'mobileRec',
+                url: ezopenUrl,
+                accessToken: accessToken,
+                // 播放成功 / 失败回调：失败信息同时打到 console 与页面提示条
+                handleSuccess: function () {
+                    console.log('[ez-player] 播放成功');
+                    hideError();
+                    hideStatus();
+                },
+                handleError: function (code, msg) {
+                    // SDK 回传的 code 是对象（含错误码/提示），JSON 化后提取具体错误码映射友好文案
+                    var detail = '';
+                    try { detail = JSON.stringify(code); } catch (e) { detail = String(code); }
+                    if (msg !== undefined && msg !== null && String(msg) !== '') {
+                        detail += ' | ' + msg;
+                    }
+                    console.error('[ez-player] 播放器错误: ' + detail);
+                    hideStatus();
+                    showError(friendlyError(detail));
+                }
+            };
+            // 按规则重拼地址（无 url 参数）时，加密设备需要显式传验证码给 SDK
+            if (!useRawUrl && verifyCode) {
+                playerOptions.verificationCode = verifyCode;
+            }
+            EZOPENDemo = new EZUIKit.EZUIKitPlayer(playerOptions);
+            window.EZOPENDemo = EZOPENDemo;
+            showStatus('正在连接设备取流…');
+        } catch (e) {
+            hideStatus();
+            showError('播放器初始化异常: ' + (e && e.message ? e.message : e));
+        }
+    }
+    showStatus('页面就绪，参数校验通过，开始初始化播放器…');
+    initPlayer();
+
+    /* ---------- 6. 窗口 resize / 转屏自适应（热更新尺寸，优先用 SDK 的 setWidth/setHeight） ---------- */
+    var resizeTimer = null;
+    function onResize() {
+        if (resizeTimer) clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+            if (!EZOPENDemo) return;
+            var size = currentSize();
+            if (typeof EZOPENDemo.setWidth === 'function' && typeof EZOPENDemo.setHeight === 'function') {
+                try {
+                    EZOPENDemo.setWidth(size.width);
+                    EZOPENDemo.setHeight(size.height);
+                    console.log('[ez-player] resize 已热更新尺寸: ' + size.width + 'x' + size.height);
+                    return;
+                } catch (e) { /* 热更新失败则走重建 */ }
+            }
+            initPlayer(); // 旧版本 SDK 无尺寸 API 时重建播放器
+        }, 150);
+    }
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+
+    /* ---------- 7. 页面卸载时停止播放、释放流 ---------- */
+    function release() {
+        if (EZOPENDemo && typeof EZOPENDemo.stop === 'function') {
+            try { EZOPENDemo.stop(); console.log('[ez-player] 页面卸载，已停止播放'); } catch (e) { }
+        }
+    }
+    window.addEventListener('beforeunload', release);
+    window.addEventListener('unload', release);
+})();
+</script>
+</body>
+</html>

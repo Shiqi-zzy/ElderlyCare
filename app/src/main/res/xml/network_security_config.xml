@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">open.ys7.com</domain>
+        <pin-set expiration="2027-01-01">
+            <!-- 萤石开放平台证书指纹（生产环境需替换为真实值） -->
+            <pin digest="SHA-256">placeholder_cert_pin_to_be_updated</pin>
+        </pin-set>
+    </domain-config>
+</network-security-config>

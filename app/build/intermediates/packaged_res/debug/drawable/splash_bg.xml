@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 启动页 windowBackground：仅浅蓝渐变背景，与 Compose 欢迎页同色系衔接。
+     不放居中 bitmap（welcome_bg 仅 216x384，大屏上会显示成小图闪烁）。 -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:angle="270"
+                android:startColor="#E8F1FB"
+                android:centerColor="#F2F7FC"
+                android:endColor="#FFFFFF" />
+        </shape>
+    </item>
+</layer-list>

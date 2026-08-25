@@ -1,0 +1,304 @@
+INFO:     Will watch for changes in these directories: ['C:\\Users\\dtt\\Desktop\\材料\\ElderlyCare（1）\\ElderlyCare--\\backend']
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     Started reloader process [60256] using WatchFiles
+INFO:     Started server process [56668]
+INFO:     Waiting for application startup.
+INFO:knowledge:[知识库] 开始绑定 agentId=ba9c5e697fbb4c0b9529 knowledgeId=ad36b885c66e4c5289db7c9fb018f6da
+ERROR:knowledge:[知识库] bind HTTP 404: {"timestamp":"2026-08-25T06:57:51.068+00:00","path":"/api/service/open/intelligent/knowledge/bind","status":404,"error":"Not Found","message":null,"requestId":"7f6d8756-1989072"}
+ERROR:knowledge:[知识库] 绑定失败（已降级，不阻断服务）: {"timestamp": "2026-08-25T06:57:51.068+00:00", "path": "/api/service/open/intelligent/knowledge/bind", "status": 404, "error": "Not Found", "message": null, "requestId": "7f6d8756-1989072"}
+INFO:knowledge:[知识库] 启动绑定执行完成: {'timestamp': '2026-08-25T06:57:51.068+00:00', 'path': '/api/service/open/intelligent/knowledge/bind', 'status': 404, 'error': 'Not Found', 'message': None, 'requestId': '7f6d8756-1989072'}
+INFO:     Application startup complete.
+INFO:     127.0.0.1:53161 - "GET /api/health HTTP/1.1" 200 OK
+INFO:knowledge:[知识库] 开始绑定 agentId=ba9c5e697fbb4c0b9529 knowledgeId=ad36b885c66e4c5289db7c9fb018f6da
+ERROR:knowledge:[知识库] bind HTTP 404: {"timestamp":"2026-08-25T06:58:44.649+00:00","path":"/api/service/open/intelligent/knowledge/bind","status":404,"error":"Not Found","message":null,"requestId":"ac2e7faf-1989133"}
+ERROR:knowledge:[知识库] 绑定失败（已降级，不阻断服务）: {"timestamp": "2026-08-25T06:58:44.649+00:00", "path": "/api/service/open/intelligent/knowledge/bind", "status": 404, "error": "Not Found", "message": null, "requestId": "ac2e7faf-1989133"}
+INFO:knowledge:[知识库] /debug/bindKnowledge 返回: {'timestamp': '2026-08-25T06:58:44.649+00:00', 'path': '/api/service/open/intelligent/knowledge/bind', 'status': 404, 'error': 'Not Found', 'message': None, 'requestId': 'ac2e7faf-1989133'}
+INFO:     127.0.0.1:50506 - "GET /debug/bindKnowledge HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50508 - "POST /api/health-profile/upload HTTP/1.1" 400 Bad Request
+INFO:profile:[健康档案] 13900000000 上传成功 version=1
+INFO:     127.0.0.1:56060 - "POST /api/health-profile/upload HTTP/1.1" 200 OK
+INFO:knowledge:[知识库] 删除旧文档 device_serial=BK9267115
+ERROR:knowledge:[知识库] doc_delete HTTP 404: {"timestamp":"2026-08-25T06:58:57.770+00:00","path":"/api/service/open/intelligent/knowledge/document/delete","status":404,"error":"Not Found","message":null,"requestId":"93d2b241-5782231"}
+ERROR:knowledge:[知识库] 删除旧文档失败（继续上传，已降级）: {"timestamp": "2026-08-25T06:58:57.770+00:00", "path": "/api/service/open/intelligent/knowledge/document/delete", "status": 404, "error": "Not Found", "message": null, "requestId": "93d2b241-5782231"}
+INFO:knowledge:[知识库] 上传档案 device_serial=BK9267115 长度=106
+ERROR:knowledge:[知识库] doc_upload HTTP 404: {"timestamp":"2026-08-25T06:58:57.925+00:00","path":"/api/service/open/intelligent/knowledge/document/upload","status":404,"error":"Not Found","message":null,"requestId":"7ab9a041-1989143"}
+ERROR:knowledge:[知识库] 上传档案失败（已降级）: {"timestamp": "2026-08-25T06:58:57.925+00:00", "path": "/api/service/open/intelligent/knowledge/document/upload", "status": 404, "error": "Not Found", "message": null, "requestId": "7ab9a041-1989143"}
+INFO:profile:[知识库] 13900000000 档案同步结果: {'code': -1, 'message': '知识库同步完成（delete+upload，失败不阻断档案保存）', 'delete': {'timestamp': '2026-08-25T06:58:57.770+00:00', 'path': '/api/service/open/intelligent/knowledge/document/delete', 'status': 404, 'error': 'Not Found', 'message': None, 'requestId': '93d2b241-5782231'}, 'upload': {'timestamp': '2026-08-25T06:58:57.925+00:00', 'path': '/api/service/open/intelligent/knowledge/document/upload', 'status': 404, 'error': 'Not Found', 'message': None, 'requestId': '7ab9a041-1989143'}}
+INFO:     192.168.5.60:46064 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:46068 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:40074 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 1 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 1 台设备
+INFO:     192.168.5.60:54016 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     connection closed
+[WS] family001 已断开
+INFO:     192.168.5.60:37006 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:41762 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 1 台设备
+INFO:     192.168.5.60:41860 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:50668 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     192.168.5.60:55666 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 1 台设备
+INFO:     192.168.5.60:55676 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     192.168.5.60:49938 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 1 台设备
+INFO:     192.168.5.60:49940 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     192.168.5.60:56382 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 1 台设备
+[WS] family001 已断开
+INFO:     192.168.5.60:57340 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:57344 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:43246 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:58896 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:47336 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:58432 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:48854 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 1 台设备
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 1 台设备
+INFO:     192.168.5.60:36242 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:capture:[验证码] BK9267115 上报成功
+INFO:     192.168.5.60:36242 - "POST /api/device/auth HTTP/1.1" 200 OK
+INFO:     connection closed
+[WS] family001 已断开
+[WEBHOOK] 收到回调: {"body":{"deviceSerial":"BK9267115","statusValue":{"resolutionType":"auto","DVIEnabled":"true","Resolution":{"width":600,"height":1024}},"localIndex":"0","attribute":"ScreenResolutionCfg","domainId":"DisplayScreen","resourceType":"global"},"header":{"channelNo":0,"deviceId":"BK9267115","messageId":"6a8d7c87d80cbb5f5071cb61","messageTime":1787657351913,"type":"ys.shadow.change"}}
+[WEBHOOK] 未处理的消息类型: ys.shadow.change
+INFO:     60.190.232.2:0 - "POST /api/ezviz/webhook HTTP/1.1" 200 OK
+INFO:webhook:[WEBHOOK] 告警 messageId=6a8d7c8ed80cbb5f5072297f alarmId=3512fe6c-a078-11f1-8000-ef6d2d4b9bbb 设备=BK9267115 加密=True 推送客户端数=0
+[WEBHOOK] 收到回调: {"body":{"crypt":1,"alarmTime":"2026-08-25T19:29:09","channel":1,"channelType":1,"relationId":"","customInfo":"","requestTime":1787657358905,"devSerial":"BK9267115","alarmType":"intelligentDetection","customType":"","alarmId":"3512fe6c-a078-11f1-8000-ef6d2d4b9bbb","checksum":"5fa6a1bc100c0b6d607a0834c0d2efab","channelName":"RK3(BK9267115)","location":"","describe":"intelligentDetection","pictureList":[{"id":"20260825192910-BK9267115-1-15010-2-1","url":"https://i.ys7.com/streamer/alarm/url/get?fileId=20260825192910-BK9267115-1-15010-2-1&deviceSerialNo=BK9267115&cn=1&isEncrypted=1&isCloudStored=1&ct=4&lc=7&bn=&isDevVideo=1"}],"status":1},"header":{"channelNo":1,"deviceId":"BK9267115","messageId":"6a8d7c8ed80cbb5f5072297f","messageTime":1787657358905,"type":"ys.alarm"}}
+INFO:     60.190.232.2:0 - "POST /api/ezviz/webhook HTTP/1.1" 200 OK
+WARNING:webhook:[WEBHOOK] 图片非 JPEG 且解密不可用，保留原始 URL 不落盘 recordId=6a8d7c8ed80cbb5f5072297f
+INFO:webhook:[WEBHOOK] 告警 messageId=6a8d7c8fce978c61784107c1 alarmId=20260825192918-BK9267115-1-20011 设备=BK9267115 加密=True 推送客户端数=0
+[ERTC] 图片解密异常（接口可能不存在，属预期降级）: HTTP Error 404: Not Found
+[WEBHOOK] 收到回调: {"body":{"crypt":1,"alarmTime":"2026-08-25T19:29:10","channel":1,"channelType":1,"relationId":"","customInfo":"eyJmYWNlSWQiOiJ1bmtub3duIiwidXNlciI6IiJ9","requestTime":1787657359626,"devSerial":"BK9267115","alarmType":"snapshot","customType":"SmartHuman_v1","alarmId":"20260825192918-BK9267115-1-20011","checksum":"5fa6a1bc100c0b6d607a0834c0d2efab","channelName":"RK3(BK9267115)","location":"","describe":"snapshot","pictureList":[{"id":"20260825192918-BK9267115-1-20011-2-1","url":"https://i.ys7.com/streamer/alarm/url/get?fileId=20260825192918-BK9267115-1-20011-2-1&deviceSerialNo=BK9267115&cn=1&isEncrypted=1&isCloudStored=0&ct=4&lc=7&bn=4_hikalarm&isDevVideo=0"}],"status":1},"header":{"channelNo":1,"deviceId":"BK9267115","messageId":"6a8d7c8fce978c61784107c1","messageTime":1787657359626,"type":"ys.alarm"}}
+INFO:     115.238.23.2:0 - "POST /api/ezviz/webhook HTTP/1.1" 200 OK
+WARNING:webhook:[WEBHOOK] 图片非 JPEG 且解密不可用，保留原始 URL 不落盘 recordId=6a8d7c8fce978c61784107c1
+[ERTC] 图片解密异常（接口可能不存在，属预期降级）: HTTP Error 404: Not Found
+INFO:     192.168.5.60:43156 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:43156 - "GET /api/captures?deviceSerial=BK9267115&pageStart=0&pageSize=100 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:43176 - "GET /media/captures/BK9267115/7980cb4bd6984daf826bf555a54db708.jpg HTTP/1.1" 304 Not Modified
+INFO:     192.168.5.60:43214 - "GET /media/captures/BK9267115/d55a782ea5454d568b2b3fcefde4b973.jpg HTTP/1.1" 304 Not Modified
+INFO:     192.168.5.60:43160 - "GET /media/captures/BK9267115/5e26fdb68caf4b30a2b92802073a5d13.jpg HTTP/1.1" 304 Not Modified
+INFO:     192.168.5.60:43190 - "GET /media/captures/BK9267115/96c4f90cd4cf4220a2eb84b815d05d73.jpg HTTP/1.1" 304 Not Modified
+INFO:     192.168.5.60:43198 - "GET /media/captures/BK9267115/m3test-20260823-002.jpg HTTP/1.1" 304 Not Modified
+INFO:     192.168.5.60:43214 - "GET /media/captures/BK9267115/5243eb20782e42dbad42550529774ba0.jpg HTTP/1.1" 304 Not Modified
+INFO:     192.168.5.60:43216 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 1 台设备
+INFO:     192.168.5.60:43156 - "POST /api/captures/6a8d7c8fce978c61784107c1/read HTTP/1.1" 200 OK
+INFO:     192.168.5.60:43156 - "GET /api/captures?deviceSerial=BK9267115&pageStart=0&pageSize=100 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:43156 - "POST /api/captures/6a8d7c8ed80cbb5f5072297f/read HTTP/1.1" 200 OK
+INFO:     192.168.5.60:43156 - "GET /api/captures?deviceSerial=BK9267115&pageStart=0&pageSize=100 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     192.168.5.60:40550 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 1 台设备
+INFO:     192.168.5.60:37346 - "GET /media/captures/BK9267115/webhook-sim-20260825-1402.jpg HTTP/1.1" 304 Not Modified
+INFO:     connection closed
+INFO:webhook:[WEBHOOK] 告警 messageId=6a8d7cc8ce978c61784454f9 alarmId=20260825193015-BK9267115-1-20011 设备=BK9267115 加密=True 推送客户端数=0
+[WS] family001 已断开
+[WEBHOOK] 收到回调: {"body":{"crypt":1,"alarmTime":"2026-08-25T19:30:13","channel":1,"channelType":1,"relationId":"","customInfo":"eyJmYWNlSWQiOiJ1bmtub3duIiwidXNlciI6IiJ9","requestTime":1787657416539,"devSerial":"BK9267115","alarmType":"snapshot","customType":"SmartHuman_v1","alarmId":"20260825193015-BK9267115-1-20011","checksum":"5fa6a1bc100c0b6d607a0834c0d2efab","channelName":"RK3(BK9267115)","location":"","describe":"snapshot","pictureList":[{"id":"20260825193015-BK9267115-1-20011-2-1","url":"https://i.ys7.com/streamer/alarm/url/get?fileId=20260825193015-BK9267115-1-20011-2-1&deviceSerialNo=BK9267115&cn=1&isEncrypted=1&isCloudStored=0&ct=4&lc=7&bn=4_hikalarm&isDevVideo=0"}],"status":1},"header":{"channelNo":1,"deviceId":"BK9267115","messageId":"6a8d7cc8ce978c61784454f9","messageTime":1787657416539,"type":"ys.alarm"}}
+INFO:     115.238.23.2:0 - "POST /api/ezviz/webhook HTTP/1.1" 200 OK
+WARNING:webhook:[WEBHOOK] 图片非 JPEG 且解密不可用，保留原始 URL 不落盘 recordId=6a8d7cc8ce978c61784454f9
+INFO:     192.168.5.60:39620 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[ERTC] 图片解密异常（接口可能不存在，属预期降级）: HTTP Error 404: Not Found
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 1 台设备
+[WEBHOOK] 收到回调: {"body":{"deviceSerial":"BK9267115","statusValue":{"resolutionType":"auto","DVIEnabled":"true","Resolution":{"width":1024,"height":600}},"localIndex":"0","attribute":"ScreenResolutionCfg","domainId":"DisplayScreen","resourceType":"global"},"header":{"channelNo":0,"deviceId":"BK9267115","messageId":"6a8d7d31d80cbb5f507ad899","messageTime":1787657521291,"type":"ys.shadow.change"}}
+[WEBHOOK] 未处理的消息类型: ys.shadow.change
+INFO:     115.238.23.2:0 - "POST /api/ezviz/webhook HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     192.168.5.60:55876 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 1 台设备
+INFO:     192.168.5.60:55886 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:55886 - "GET /api/captures?deviceSerial=BK9267115&pageStart=0&pageSize=100 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:55886 - "POST /api/captures/6a8d7cc8ce978c61784454f9/read HTTP/1.1" 200 OK
+INFO:     192.168.5.60:55886 - "GET /api/captures?deviceSerial=BK9267115&pageStart=0&pageSize=100 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:36342 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     192.168.5.60:43250 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 1 台设备
+INFO:     192.168.5.60:43260 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:43260 - "GET /api/captures?deviceSerial=BK9267115&pageStart=0&pageSize=100 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:43260 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     192.168.5.60:48692 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 1 台设备
+INFO:     192.168.5.60:47702 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     192.168.5.60:48442 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:34700 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:36648 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:51896 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:48756 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:57552 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:58872 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:41142 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:42658 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:35568 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:48908 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     192.168.5.60:59966 - "WebSocket /api/ws?clientId=family001" [accepted]
+INFO:     connection open
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 已断开
+[WS] family001 已连接 (在线客户端数 1)
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 1 台设备
+INFO:     192.168.5.60:41724 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:capture:[验证码] BK9267115 上报成功
+INFO:     192.168.5.60:41724 - "POST /api/device/auth HTTP/1.1" 200 OK
+INFO:     192.168.5.60:47584 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:47584 - "GET /api/captures?deviceSerial=BK9267115&pageStart=0&pageSize=100 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:52498 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:40656 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:56978 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:35282 - "GET /api/captures/unread-count?deviceSerial=BK9267115 HTTP/1.1" 200 OK
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+[WEBHOOK] 收到回调: {"body":{"identifier":"ReportClockRemindRecord","payload":"{\"basic\":{\"dateTime\":\"2026-08-25T20:52:00+08:00\",\"UUID\":\"c32f0d84-a083-11f1-8000-ef6d2d4b9bbb\"},\"payload\":{\"id\":\"veQw3755\",\"memberId\":\"\",\"memberName\":\"\",\"remindTime\":\"2026-08-25 20:51\",\"name\":\"约会\",\"remindType\":\"date\",\"remindPeriod\":\"2026-8-25\",\"mark\":\"约会时间到了\",\"status\":1}}","domain":"ClockMgr","localIndex":"0","deviceId":"BK9267115","userId":"d3c825bb6f2840e0adbb2ca264122a9b","resourceType":"global","username":"mqkaxv"},"header":{"deviceId":"BK9267115","messageId":"6a8d8ff2417b0da03207a17c","messageTime":1787662321956,"type":"ys.iot"}}
+[WEBHOOK] 未处理的消息类型: ys.iot
+INFO:     115.238.23.2:0 - "POST /api/ezviz/webhook HTTP/1.1" 200 OK
+INFO:webhook:[WEBHOOK] 告警 messageId=6a8d8ff2417b0da03207a7ab alarmId=c37292b6-a083-11f1-8000-ef6d2d4b9bbb 设备=BK9267115 加密=False 推送客户端数=0
+[WEBHOOK] 收到回调: {"body":{"alarmTime":"2026-08-25T20:52:00","channel":1,"channelType":1,"relationId":"","customInfo":"{\"type\":\"clock_unfinish\"}","requestTime":1787662322427,"devSerial":"BK9267115","alarmType":"LifeEventReminder","customType":"clock_unfinish","alarmId":"c37292b6-a083-11f1-8000-ef6d2d4b9bbb","channelName":"RK3(BK9267115)","location":"","describe":"LifeEventReminder","status":1},"header":{"channelNo":1,"deviceId":"BK9267115","messageId":"6a8d8ff2417b0da03207a7ab","messageTime":1787662322427,"type":"ys.alarm"}}
+INFO:     60.190.232.2:0 - "POST /api/ezviz/webhook HTTP/1.1" 200 OK
+WARNING:webhook:[WEBHOOK] 告警 6a8d8ff2417b0da03207a7ab 无图片 URL，跳过下载
+INFO:     192.168.5.60:41940 - "GET /api/health-profile/18107663723 HTTP/1.1" 200 OK
+INFO:     192.168.5.60:41946 - "GET /api/health-profile/18107663723 HTTP/1.1" 200 OK
+[WS] family001 订阅更新: 0 台设备
+[WS] family001 订阅更新: 0 台设备
+INFO:     192.168.5.60:56826 - "GET /api/health-profile/18107663723 HTTP/1.1" 200 OK
+INFO:     connection closed
+[WS] family001 已断开
+INFO:     223.104.22.40:0 - "GET /api/ezviz/webhook HTTP/1.1" 405 Method Not Allowed
+[WEBHOOK] 收到回调: {"test":"hello"}
+[WEBHOOK] 未处理的消息类型: 
+INFO:     223.104.22.40:0 - "POST /api/ezviz/webhook HTTP/1.1" 200 OK
