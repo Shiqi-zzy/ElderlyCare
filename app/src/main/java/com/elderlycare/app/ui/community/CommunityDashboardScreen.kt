@@ -36,7 +36,6 @@ import com.elderlycare.app.ui.shared.color
 import com.elderlycare.app.ui.shared.hasDevice
 import com.elderlycare.app.ui.shared.healthCategory
 import com.elderlycare.app.ui.theme.*
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 
@@ -65,7 +64,11 @@ private val MetricGreen = Color(0xFF42BD67)
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CommunityDashboardScreen(onLogout: () -> Unit = {}, onUserClick: (String) -> Unit = {}) {
+fun CommunityDashboardScreen(
+    onLogout: () -> Unit = {},
+    onUserClick: (String) -> Unit = {},
+    onNavigateToAllTodos: () -> Unit = {}
+) {
     val scope = rememberCoroutineScope()
     var staff by remember { mutableStateOf<AppUser?>(null) }
     var detailTitle by remember { mutableStateOf<String?>(null) }
@@ -84,14 +87,11 @@ fun CommunityDashboardScreen(onLogout: () -> Unit = {}, onUserClick: (String) ->
     val abnormal = elderly.count { it.profile.healthCategory() == HealthCategory.ABNORMAL }
     val withDevice = elderly.count { it.profile.hasDevice() }
 
-    // 待办事项（从真实数据获取）
+    // 待办事项（从真实数据获取，仅显示待处理）
     val todos by remember(staff?.phone) {
         if (staff != null) ServiceLocator.communityRepository.observePendingTodos(staff!!.phone)
         else flowOf(emptyList())
     }.collectAsStateWithLifecycle(initialValue = emptyList())
-
-    // 已完成待办（用于延迟消失过滤）
-    var completedTodoIds by remember { mutableStateOf(setOf<Long>()) }
 
     val pendingCount = attention + abnormal
     val completionRate = if (total > 0) (withDevice * 100 / total) else 0
@@ -244,13 +244,19 @@ fun CommunityDashboardScreen(onLogout: () -> Unit = {}, onUserClick: (String) ->
         ) {
             Text("待办事项", color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
             Spacer(modifier = Modifier.weight(1f))
-            Text("全部 ($pendingCount)", color = TextGray, fontSize = 13.sp)
+            Text(
+                "全部 (${todos.size})",
+                color = MintGreen,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.clickable(onClick = onNavigateToAllTodos)
+            )
+            Icon(Icons.Filled.KeyboardArrowRight, null, tint = MintGreen, modifier = Modifier.size(16.dp))
         }
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 待办列表（从真实数据获取，按老人分组，完成后延迟消失）
-        val visibleTodos = todos.filter { it.id !in completedTodoIds }
-        if (visibleTodos.isEmpty()) {
+        // 待办列表（最多显示2条，完成后数据库Flow自动更新消失）
+        if (todos.isEmpty()) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -266,53 +272,34 @@ fun CommunityDashboardScreen(onLogout: () -> Unit = {}, onUserClick: (String) ->
                 )
             }
         } else {
-            // 按老人分组
-            val grouped = visibleTodos.groupBy { it.elderlyId }
-            grouped.forEach { (elderlyId, elderTodos) ->
-                val elderName = elderTodos.first().elderlyName
-                // 老人分组标题
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(modifier = Modifier.size(6.dp).clip(CircleShape).background(MintGreen))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(elderName, color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("${elderTodos.size}项", color = TextHint, fontSize = 11.sp)
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                elderTodos.forEachIndexed { index, todo ->
-                    RealTodoItem(
-                        todo = todo,
-                        onComplete = {
-                            // 标记完成
-                            completedTodoIds = completedTodoIds + todo.id
-                            // 写入服务记录
-                            scope.launch {
-                                staff?.let { s ->
-                                    ServiceLocator.communityRepository.completeTodo(
-                                        id = todo.id,
-                                        staffId = s.phone,
-                                        elderlyId = todo.elderlyId,
-                                        elderlyName = todo.elderlyName,
-                                        todoType = todo.todoType,
-                                        content = todo.content
-                                    )
-                                }
-                            }
-                            // 3秒后从UI过滤消失
-                            scope.launch {
-                                delay(3000)
-                                completedTodoIds = completedTodoIds - todo.id
+            todos.take(2).forEachIndexed { index, todo ->
+                RealTodoItem(
+                    todo = todo,
+                    onComplete = {
+                        scope.launch {
+                            staff?.let { s ->
+                                ServiceLocator.communityRepository.completeTodo(
+                                    id = todo.id,
+                                    staffId = s.phone,
+                                    elderlyId = todo.elderlyId,
+                                    elderlyName = todo.elderlyName,
+                                    todoType = todo.todoType,
+                                    content = todo.content
+                                )
                             }
                         }
-                    )
-                    if (index < elderTodos.size - 1) Spacer(modifier = Modifier.height(6.dp))
-                }
-                Spacer(modifier = Modifier.height(10.dp))
+                    }
+                )
+                if (index < minOf(todos.size, 2) - 1) Spacer(modifier = Modifier.height(8.dp))
+            }
+            if (todos.size > 2) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "还有 ${todos.size - 2} 项待办，点击\"全部\"查看",
+                    color = TextHint,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
             }
         }
 

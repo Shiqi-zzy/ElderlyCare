@@ -20,13 +20,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.elderlycare.app.data.ezviz.ServiceLocator
+import com.elderlycare.app.data.ezviz.model.AlarmMessage
+import com.elderlycare.app.data.ezviz.model.AlarmType
 import com.elderlycare.app.data.model.AppUser
 import com.elderlycare.app.ui.components.StatusBadge
 import com.elderlycare.app.ui.components.charts.ChartLegend
 import com.elderlycare.app.ui.components.charts.DonutChart
 import com.elderlycare.app.ui.components.charts.MetricRing
 import com.elderlycare.app.ui.components.charts.PieSlice
+import com.elderlycare.app.ui.ezviz.AlarmListViewModel
 import com.elderlycare.app.ui.shared.HealthCategory
 import com.elderlycare.app.ui.shared.color
 import com.elderlycare.app.ui.shared.formatTimestamp
@@ -70,6 +74,15 @@ fun HospitalEmergencyPanelScreen(
     val attention = elderly.count { it.profile.healthCategory() == HealthCategory.ATTENTION }
     val abnormal = elderly.count { it.profile.healthCategory() == HealthCategory.ABNORMAL }
     val focus = elderly.filter { it.profile.healthCategory() != HealthCategory.NORMAL }
+
+    // 告警消息（从云端获取，按绑定老人设备过滤）
+    val alarmViewModel: AlarmListViewModel = viewModel()
+    val alarmUiState by alarmViewModel.uiState.collectAsState()
+    val alarms = alarmUiState.messages
+
+    // 通过 deviceSerial 匹配老人姓名
+    fun elderlyNameByDeviceSn(deviceSn: String): String =
+        elderly.firstOrNull { it.profile.deviceSn == deviceSn }?.profile?.name ?: "未知老人"
 
     Column(
         modifier = Modifier
@@ -161,7 +174,7 @@ fun HospitalEmergencyPanelScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // ===== 近期急救事件 =====
+        // ===== 近期急救事件（设备告警消息）=====
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -175,13 +188,13 @@ fun HospitalEmergencyPanelScreen(
                 color = TealDark,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
-                modifier = Modifier.clickable(onClick = onNavigateToAllEvents)
+                modifier = Modifier.clickable(onClick = onNavigateToAlarm)
             )
             Icon(Icons.Filled.KeyboardArrowRight, null, tint = TealDark, modifier = Modifier.size(18.dp))
         }
         Spacer(modifier = Modifier.height(10.dp))
 
-        if (elderly.isEmpty()) {
+        if (alarms.isEmpty()) {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -192,32 +205,26 @@ fun HospitalEmergencyPanelScreen(
             ) {
                 Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Filled.Inbox, null, tint = TextHint, modifier = Modifier.size(32.dp))
+                        Icon(Icons.Filled.NotificationsNone, null, tint = TextHint, modifier = Modifier.size(32.dp))
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("暂无可访问患者，可先发起绑定申请", color = TextHint, fontSize = 13.sp)
+                        Text("暂无告警消息", color = TextHint, fontSize = 13.sp)
                     }
                 }
             }
         }
 
-        // 患者卡片（异常老人优先，最多显示2条，点击进入详情）
-        val sortedElderly = elderly.sortedByDescending { it.profile.healthCategory() == HealthCategory.ABNORMAL }
-        sortedElderly.take(2).forEach { item ->
-            EmergencyPatientCard(
-                name = item.profile.name,
-                age = item.profile.age,
-                gender = item.profile.gender.label,
-                orgName = item.orgName,
-                badgeText = item.profile.healthCategory().label,
-                badgeColor = item.profile.healthCategory().color(),
-                deviceText = "设备：${if (item.profile.hasDevice()) "已绑定" else "未绑定"} · ${formatTimestamp(item.bindingCreatedAt)}",
-                onClick = { onUserClick(item.elderlyId) }
+        // 告警消息卡片（最多显示2条，点击跳转到告警消息页）
+        alarms.take(2).forEach { alarm ->
+            AlarmEventCard(
+                alarm = alarm,
+                elderlyName = elderlyNameByDeviceSn(alarm.deviceSerial),
+                onClick = onNavigateToAlarm
             )
             Spacer(modifier = Modifier.height(10.dp))
         }
-        if (sortedElderly.size > 2) {
+        if (alarms.size > 2) {
             Text(
-                "还有 ${sortedElderly.size - 2} 位患者，点击\"全部\"查看",
+                "还有 ${alarms.size - 2} 条告警，点击\"全部\"查看",
                 color = TextHint,
                 fontSize = 12.sp,
                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -243,14 +250,14 @@ fun HospitalEmergencyPanelScreen(
                     .weight(1f)
                     .fillMaxHeight()
             ) {
-                Column(modifier = Modifier.padding(14.dp)) {
+                Column(modifier = Modifier.padding(14.dp).fillMaxHeight()) {
                     Text("健康状态分布", color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Spacer(Modifier.height(10.dp))
                     val slices = listOf(
                         PieSlice("正常", normal.toFloat(), StatusGreen),
                         PieSlice("异常", abnormal.toFloat(), StatusRed)
                     )
-                    Box(contentAlignment = Alignment.Center) {
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                         DonutChart(slices = slices, modifier = Modifier.size(90.dp), centerLabel = total.toString())
                     }
                     Spacer(Modifier.height(8.dp))
@@ -267,10 +274,12 @@ fun HospitalEmergencyPanelScreen(
                     .weight(1f)
                     .fillMaxHeight()
             ) {
-                Column(modifier = Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(modifier = Modifier.padding(14.dp).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("服务患者", color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     Spacer(Modifier.height(10.dp))
-                    MetricRing("绑定患者", total.toString(), if (total > 0) 1f else 0f, TealDark)
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        MetricRing("绑定患者", total.toString(), if (total > 0) 1f else 0f, TealDark)
+                    }
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Filled.TrendingUp, null, tint = StatusGreen, modifier = Modifier.size(14.dp))
@@ -282,6 +291,50 @@ fun HospitalEmergencyPanelScreen(
         }
 
         Spacer(modifier = Modifier.height(24.dp))
+    }
+}
+
+/** 告警事件卡片：警告图标 + 告警名称/老人/时间 + 箭头，点击跳转到告警消息页 */
+@Composable
+private fun AlarmEventCard(alarm: AlarmMessage, elderlyName: String, onClick: () -> Unit) {
+    val alarmTypeLabel = AlarmType.fromCode(alarm.alarmType).label
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = CardWhite),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(StatusRed.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.Warning, null, tint = StatusRed, modifier = Modifier.size(20.dp))
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(alarm.alarmName, color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, maxLines = 1)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text("$elderlyName · $alarmTypeLabel", color = TextGray, fontSize = 12.sp, maxLines = 1)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(alarm.alarmTime, color = TextHint, fontSize = 11.sp)
+            }
+            if (!alarm.isRead) {
+                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(StatusRed))
+                Spacer(modifier = Modifier.width(6.dp))
+            }
+            Icon(Icons.Filled.KeyboardArrowRight, null, tint = TextHint, modifier = Modifier.size(20.dp))
+        }
     }
 }
 

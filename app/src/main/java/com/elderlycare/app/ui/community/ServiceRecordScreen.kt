@@ -123,12 +123,6 @@ private fun ServiceRecordCard(record: ServiceRecord) {
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(formatTimestamp(record.createdAt), color = TextGray, fontSize = 12.sp)
                 }
-                if (record.durationMinutes > 0) {
-                    Surface(shape = RoundedCornerShape(8.dp), color = MintGreen.copy(alpha = 0.1f)) {
-                        Text("${record.durationMinutes}分钟", color = MintGreen, fontSize = 11.sp, fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp))
-                    }
-                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(record.content, color = TextGray, fontSize = 12.sp, lineHeight = 18.sp)

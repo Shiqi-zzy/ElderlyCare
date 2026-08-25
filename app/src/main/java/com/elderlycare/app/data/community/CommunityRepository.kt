@@ -72,9 +72,11 @@ class CommunityRepository(
                 createdAt = now
             )
         )
-        // 完成对应的待办事项
-        val todos = dao.observeTodosByStatus(staffId, TodoItem.STATUS_PENDING)
-        // 注意：Flow 不能直接在 suspend 中取，这里通过查询所有待办匹配
+        // 同步完成对应的待办事项（按老人+类型匹配，创建随访时生成的待办）
+        val relatedTodos = dao.getTodosByElderlyAndType(elderlyId, followUpType, TodoItem.STATUS_PENDING)
+        relatedTodos.forEach { todo ->
+            dao.updateTodoStatus(todo.id, TodoItem.STATUS_DONE, now)
+        }
     }
 
     // ==================== 排班 ====================
@@ -124,8 +126,29 @@ class CommunityRepository(
     suspend fun completeTodo(id: Long, staffId: String, elderlyId: String, elderlyName: String, todoType: String, content: String) {
         val now = System.currentTimeMillis()
         dao.updateTodoStatus(id, TodoItem.STATUS_DONE, now)
-        // 写入服务记录（如果是随访类型，避免重复记录）
-        if (todoType != "上门随访" && todoType != "健康随访" && todoType != "电话随访") {
+
+        val isFollowUp = todoType == "上门随访" || todoType == "健康随访" || todoType == "电话随访"
+
+        if (isFollowUp) {
+            // 随访类型：同步完成对应的随访记录（与随访计划页完成效果一致）
+            val relatedFollowUps = dao.getFollowUpsByElderlyAndType(elderlyId, todoType, CommunityFollowUpRecord.STATUS_PENDING)
+            relatedFollowUps.forEach { fu ->
+                dao.updateFollowUpStatus(fu.id, CommunityFollowUpRecord.STATUS_DONE, now)
+            }
+            // 写入服务记录（随访30分钟）
+            dao.insertServiceRecord(
+                ServiceRecord(
+                    staffId = staffId,
+                    elderlyId = elderlyId,
+                    elderlyName = elderlyName,
+                    serviceType = todoType,
+                    content = content,
+                    durationMinutes = 30,
+                    createdAt = now
+                )
+            )
+        } else {
+            // 非随访类型（如告警消息）：写入服务记录（15分钟）
             dao.insertServiceRecord(
                 ServiceRecord(
                     staffId = staffId,

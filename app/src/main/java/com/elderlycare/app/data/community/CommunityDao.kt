@@ -23,6 +23,9 @@ interface CommunityDao {
     @Query("SELECT * FROM community_follow_up WHERE staffId = :staffId AND status = :status ORDER BY scheduledTime DESC")
     suspend fun getFollowUpsByStatus(staffId: String, status: String): List<CommunityFollowUpRecord>
 
+    @Query("SELECT * FROM community_follow_up WHERE elderlyId = :elderlyId AND followUpType = :followUpType AND status = :status ORDER BY createdAt DESC")
+    suspend fun getFollowUpsByElderlyAndType(elderlyId: String, followUpType: String, status: String): List<CommunityFollowUpRecord>
+
     @Query("UPDATE community_follow_up SET status = :status, completedAt = :completedAt WHERE id = :id")
     suspend fun updateFollowUpStatus(id: Long, status: String, completedAt: Long?)
 
@@ -61,6 +64,9 @@ interface CommunityDao {
 
     @Query("SELECT * FROM todo_item WHERE staffId = :staffId ORDER BY createdAt DESC")
     fun observeAllTodos(staffId: String): Flow<List<TodoItem>>
+
+    @Query("SELECT * FROM todo_item WHERE elderlyId = :elderlyId AND todoType = :todoType AND status = :status ORDER BY createdAt DESC")
+    suspend fun getTodosByElderlyAndType(elderlyId: String, todoType: String, status: String): List<TodoItem>
 
     @Query("UPDATE todo_item SET status = :status, completedAt = :completedAt WHERE id = :id")
     suspend fun updateTodoStatus(id: Long, status: String, completedAt: Long?)

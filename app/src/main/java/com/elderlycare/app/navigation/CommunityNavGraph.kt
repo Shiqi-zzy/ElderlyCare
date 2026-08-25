@@ -73,7 +73,8 @@ fun CommunityMainScreen(navController: NavHostController, onLogout: () -> Unit) 
                 QualificationGate {
                     CommunityDashboardScreen(
                         onLogout = onLogout,
-                        onUserClick = { elderlyId -> navController.navigate(Screen.UserDetail.createRoute(elderlyId)) }
+                        onUserClick = { elderlyId -> navController.navigate(Screen.UserDetail.createRoute(elderlyId)) },
+                        onNavigateToAllTodos = { innerNavController.navigate("community_all_todos") }
                     )
                 }
             }
@@ -112,6 +113,10 @@ fun CommunityMainScreen(navController: NavHostController, onLogout: () -> Unit) 
             // 服务记录
             composable("community_service_record") {
                 ServiceRecordScreen(onNavigateBack = { innerNavController.popBackStack() })
+            }
+            // 全部待办事项
+            composable("community_all_todos") {
+                CommunityAllTodosScreen(onNavigateBack = { innerNavController.popBackStack() })
             }
             // 社区发起绑定申请（内层全屏页，底部栏保持可见，返回 = popBackStack）
             composable("community_binding_apply") {
