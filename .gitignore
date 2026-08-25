@@ -1,0 +1,29 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+/app/build
+/app/release
+*.apk
+*.aab
+*.jks
+*.keystore
+
+# 后端运行产物 / Python 编译缓存
+backend/**/__pycache__/
+*.pyc
+backend/**/*.db*
+backend/media/
+
+# Gradle 构建缓存（本机）
+.gradle_home/
+
+# UI 设计参考图（不入库）
+live_target_style.png
+reference_welcome.png
