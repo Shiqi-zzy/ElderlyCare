@@ -175,7 +175,12 @@ private fun ApplyTabContent(role: UserRole, onSubmitted: () -> Unit) {
         val staff = ServiceLocator.staffUserStore.getCurrentStaffUser()
         currentStaff = staff
         if (staff != null) {
-            elderlyList = ServiceLocator.bindingRepository.getAvailableElderly(staff)
+            var available = ServiceLocator.bindingRepository.getAvailableElderly(staff)
+            // 社区网格员只能申请绑定自己负责楼栋的老人；医院前台走医院-社区绑定，不受楼栋限制
+            if (staff.role == UserRole.COMMUNITY && staff.areaBuildings.isNotEmpty()) {
+                available = available.filter { it.buildingNo in staff.areaBuildings }
+            }
+            elderlyList = available
         }
     }
 

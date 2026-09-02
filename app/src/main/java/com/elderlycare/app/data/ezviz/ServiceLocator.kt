@@ -10,6 +10,8 @@ import com.elderlycare.app.data.binding.BindingDatabase
 import com.elderlycare.app.data.binding.BindingRepository
 import com.elderlycare.app.data.binding.SeedData
 import com.elderlycare.app.data.community.CommunityRepository
+import com.elderlycare.app.data.incident.IncidentRepository
+import com.elderlycare.app.data.incident.IncidentScheduler
 import com.elderlycare.app.data.local.ElderlyProfileStore
 import com.elderlycare.app.data.local.FamilyUserStore
 import com.elderlycare.app.data.local.SettingsStore
@@ -59,7 +61,7 @@ object ServiceLocator {
     /** 社区/医院工作人员账号存储（独立 staff_data，与家属 userStore 分离） */
     lateinit var staffUserStore: UserStore
         private set
-    /** 多端绑定关系数据库（organization / binding_request / user_elderly_binding / local_alert） */
+    /** 多端绑定关系数据库（organization / binding_request / user_elderly_binding / local_alert / hospital_community_binding） */
     lateinit var bindingDatabase: BindingDatabase
         private set
     lateinit var bindingDao: BindingDao
@@ -68,11 +70,11 @@ object ServiceLocator {
     lateinit var bindingRepository: BindingRepository
         private set
 
-    /** 后台协程作用域（幂等 seed 等轻量初始化任务） */
+    /** 后台协程作用域（幂等 seed 等轻量初始化任务、事件调度器） */
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     // ===== 留言模块 =====
-    /** 应用数据库单例（message/remind_plan/medical_follow_up_record/health_advice 共用） */
+    /** 应用数据库单例（message/remind/medical/health/community/incident 共用） */
     lateinit var appDatabase: AppDatabase
         private set
     lateinit var sdkManager: EzvizSdkManager
@@ -84,6 +86,12 @@ object ServiceLocator {
 
     /** 社区端业务仓库（随访/排班/服务记录/待办事项） */
     lateinit var communityRepository: CommunityRepository
+        private set
+
+    // ===== 四端协同紧急事件处置（状态机/加急升级/处罚/大屏聚合）=====
+    lateinit var incidentRepository: IncidentRepository
+        private set
+    lateinit var incidentScheduler: IncidentScheduler
         private set
 
     // ===== 提醒计划（萤石 v3 设备本地闹铃 REST + Room）=====
@@ -145,8 +153,6 @@ object ServiceLocator {
         staffUserStore = UserStore(appContext)
         bindingDatabase = BindingDatabase.getInstance(appContext)
         bindingDao = bindingDatabase.bindingDao()
-        // 幂等预置演示机构与工作人员账号（不阻塞主线程）
-        appScope.launch { SeedData(staffUserStore, bindingDao).ensureSeeded() }
 
         // ===== 云通话（ERTC）= 自建信令后端 REST =====
         // 注：文字留言已改回本地 TTS + 云广播，不走此后端；
@@ -228,6 +234,27 @@ object ServiceLocator {
             dao = appDatabase.communityDao(),
             messageRepository = messageRepository
         )
+
+        // ===== 四端协同事件处置仓库 + 周期调度器（15s×3 加急/升级/处罚）=====
+        incidentRepository = IncidentRepository(
+            incidentDao = appDatabase.incidentDao(),
+            communityDao = appDatabase.communityDao(),
+            bindingDao = bindingDao,
+            userStore = staffUserStore
+        )
+        incidentScheduler = IncidentScheduler(incidentRepository, appScope)
+        incidentScheduler.start()
+
+        // 幂等预置演示数据：机构 + 网格员/医生 + 排班 + 医院-社区绑定 + 分楼栋老人（不阻塞主线程）
+        appScope.launch {
+            SeedData(
+                userStore = staffUserStore,
+                bindingDao = bindingDao,
+                communityDao = appDatabase.communityDao(),
+                profileStore = profileStore,
+                familyUserStore = userStore
+            ).ensureSeeded()
+        }
 
         initialized = true
         Log.d(TAG, "ServiceLocator 初始化完成")

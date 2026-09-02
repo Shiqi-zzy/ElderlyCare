@@ -9,9 +9,8 @@ import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 /**
- * 多端绑定关系数据访问接口（四张表的基础 CRUD / Flow）。
+ * 多端绑定关系数据访问接口（五张表的基础 CRUD / Flow）。
  *
- * 第一阶段只建立数据访问基础，业务绑定流程由后续 BindingRepository 实现。
  * 全部返回 suspend 或 Flow，在 Room 自有调度器执行，不阻塞 UI。
  */
 @Dao
@@ -33,6 +32,9 @@ interface BindingDao {
 
     @Query("SELECT * FROM organization ORDER BY createdAt ASC")
     fun observeAllOrganizations(): Flow<List<OrganizationEntity>>
+
+    @Query("SELECT * FROM organization WHERE type = :type ORDER BY createdAt ASC")
+    suspend fun getOrganizationsByType(type: String): List<OrganizationEntity>
 
     @Query("SELECT COUNT(*) FROM organization")
     suspend fun countOrganizations(): Int
@@ -89,6 +91,10 @@ interface BindingDao {
     @Query("SELECT * FROM user_elderly_binding WHERE elderlyId = :elderlyId AND status = :status ORDER BY createdAt DESC")
     suspend fun getBindingsByElderly(elderlyId: String, status: String): List<UserElderlyBindingEntity>
 
+    /** 某机构下全部有效绑定（医院经社区看老人、大屏聚合用） */
+    @Query("SELECT * FROM user_elderly_binding WHERE organizationId = :orgId AND status = :status")
+    suspend fun getBindingsByOrganization(orgId: String, status: String): List<UserElderlyBindingEntity>
+
     @Query("UPDATE user_elderly_binding SET status = :status, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateBindingStatus(id: String, status: String, updatedAt: Long)
 
@@ -133,4 +139,37 @@ interface BindingDao {
     /** 按设备标记全部未处理告警为已处理（告警详情「标记已处理」兜底：告警非 WS 通道到达时无精确 id 匹配） */
     @Query("UPDATE local_alert SET status = :status WHERE deviceId = :deviceId AND status != :status")
     suspend fun updateAlertsByDevice(deviceId: String, status: String)
+
+    // ==================== 医院-社区绑定（多对多，管理端审批）====================
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertHcBinding(binding: HospitalCommunityBindingEntity): Long
+
+    @Update
+    suspend fun updateHcBinding(binding: HospitalCommunityBindingEntity)
+
+    @Query("SELECT * FROM hospital_community_binding WHERE id = :id")
+    suspend fun getHcBinding(id: Long): HospitalCommunityBindingEntity?
+
+    /** 某医院的全部绑定申请/关系 */
+    @Query("SELECT * FROM hospital_community_binding WHERE hospitalOrgId = :hospitalOrgId ORDER BY createdAt DESC")
+    suspend fun getHcBindingsByHospital(hospitalOrgId: String): List<HospitalCommunityBindingEntity>
+
+    @Query("SELECT * FROM hospital_community_binding WHERE hospitalOrgId = :hospitalOrgId ORDER BY createdAt DESC")
+    fun observeHcBindingsByHospital(hospitalOrgId: String): Flow<List<HospitalCommunityBindingEntity>>
+
+    /** 某医院已 ACTIVE 绑定的社区 id 列表（医院可见老人/大屏用） */
+    @Query("SELECT communityOrgId FROM hospital_community_binding WHERE hospitalOrgId = :hospitalOrgId AND status = 'ACTIVE'")
+    suspend fun getActiveCommunityIdsByHospital(hospitalOrgId: String): List<String>
+
+    /** 某社区已 ACTIVE 绑定的医院列表（社区出警选医院用） */
+    @Query("SELECT * FROM hospital_community_binding WHERE communityOrgId = :communityOrgId AND status = 'ACTIVE'")
+    suspend fun getActiveHospitalsByCommunity(communityOrgId: String): List<HospitalCommunityBindingEntity>
+
+    /** 管理端：待审批列表 */
+    @Query("SELECT * FROM hospital_community_binding WHERE status = 'PENDING' ORDER BY createdAt ASC")
+    fun observePendingHcBindings(): Flow<List<HospitalCommunityBindingEntity>>
+
+    @Query("UPDATE hospital_community_binding SET status = :status, reviewedBy = :reviewedBy, reviewNote = :note, reviewedAt = :reviewedAt WHERE id = :id")
+    suspend fun updateHcBindingStatus(id: Long, status: String, reviewedBy: String?, note: String, reviewedAt: Long?)
 }

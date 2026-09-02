@@ -23,6 +23,10 @@ data class AppUser(
      * Gson 缺字段（旧账号）→ null，读取口径按「null 视为已通过」处理，不锁历史/演示账号。
      */
     val qualification: String? = null,
+    /** 职位（如 网格员 / 主治医师），可选 */
+    val title: String = "",
+    /** 负责楼栋编码列表（仅社区网格员；每栋责任唯一、不共管） */
+    val areaBuildings: List<String> = emptyList(),
     /** 创建时间戳（毫秒） */
     val createdAt: Long = 0L
 )

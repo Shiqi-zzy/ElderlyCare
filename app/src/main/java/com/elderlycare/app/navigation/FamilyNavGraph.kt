@@ -13,8 +13,10 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.elderlycare.app.data.binding.BindingRepository
 import com.elderlycare.app.data.ezviz.ServiceLocator
+import com.elderlycare.app.ui.family.FamilyCareScreen
 import com.elderlycare.app.ui.family.FamilyHomeScreen
-import com.elderlycare.app.ui.family.MyScreen
+import com.elderlycare.app.ui.family.FamilyMyV2Screen
+import com.elderlycare.app.ui.family.IncidentTimelineScreen
 import com.elderlycare.app.ui.login.WelcomeScreen
 import com.elderlycare.app.ui.message.MessageCenterScreen
 import com.elderlycare.app.ui.reports.ReportsScreen
@@ -27,7 +29,6 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
     val innerNavController = rememberNavController()
 
     // 底部「消息」Tab 全局未读角标：授权链路当前设备 → 消息 Room 未读合计（无设备恒 0 隐藏）
-    // （observeCurrentUserDevice 为 suspend：先 collect 到 state，再切未读数流，与 MyScreen 同款模式）
     var globalBoundDevice by remember { mutableStateOf<BindingRepository.AccessibleDevice?>(null) }
     LaunchedEffect(Unit) {
         ServiceLocator.bindingRepository.observeCurrentUserDevice().collect { globalBoundDevice = it }
@@ -103,12 +104,9 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                 val scope = rememberCoroutineScope()
                 FamilyHomeScreen(
                     onOpenCaptures = {
-                        // 首页「抓拍」：只跳全部抓拍页，不直接触发抓拍；
-                        // 手动抓拍由全部抓拍页 FAB / 预览页截图按钮发起（同一后端接口，4s 限流）
                         navController.navigate(Screen.Captures.route) { launchSingleTop = true }
                     },
                     onNavigateToVideo = {
-                        // 设备串号取授权链路当前设备（与直播页闸门一致）
                         scope.launch {
                             val device = ServiceLocator.bindingRepository.getCurrentUserDevice()
                             device?.deviceSn?.let {
@@ -117,7 +115,6 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                         }
                     },
                     onNavigateToVideoCall = {
-                        // 首页「视频通话」：发起 ERTC 呼叫（与紧急通话同一接线模式）
                         scope.launch {
                             val device = ServiceLocator.bindingRepository.getCurrentUserDevice()
                             device?.deviceSn?.let {
@@ -129,7 +126,6 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                         navController.navigate(Screen.Message.route)
                     },
                     onNavigateToRk3Play = {
-                        // 首页「点播」：与预览页底部「点播」同一入口（RK3 点播页）
                         scope.launch {
                             val device = ServiceLocator.bindingRepository.getCurrentUserDevice()
                             device?.deviceSn?.let {
@@ -138,7 +134,6 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                         }
                     },
                     onNavigateToPlayback = {
-                        // 首页「录像」：SD 录像回放列表（startTime 空 = 不自动定位）
                         scope.launch {
                             val device = ServiceLocator.bindingRepository.getCurrentUserDevice()
                             device?.deviceSn?.let {
@@ -147,7 +142,6 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                         }
                     },
                     onNavigateToBroadcast = {
-                        // 首页「广播」：云广播 FM 页（TTS 下发 RK3，与留言 sendOnce 广播独立）
                         scope.launch {
                             val device = ServiceLocator.bindingRepository.getCurrentUserDevice()
                             device?.deviceSn?.let {
@@ -156,7 +150,6 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                         }
                     },
                     onOpenMessagesTab = {
-                        // 铃铛 / 告警消息：切底部「消息」Tab（消息中心）
                         innerNavController.navigate("messages") {
                             popUpTo(innerNavController.graph.startDestinationId) { saveState = true }
                             launchSingleTop = true
@@ -166,9 +159,6 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                 )
             }
             composable("calendar") {
-                // 日程 Tab（聚合总览）：日期 Tab 过滤展示提醒计划（只读）；
-                // 右上角【提醒计划】跳提醒计划页（新增入口）；点击条目跳详情（外层导航）；
-                // 进 Tab 时 VM 自动同步设备闹铃（clock/list）+ 轮询执行记录
                 RemindPlanCalendarScreen(
                     onNavigateToRemindPlan = {
                         navController.navigate(Screen.RemindPlanList.route)
@@ -179,12 +169,9 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                 )
             }
             composable("reports") {
-                // 报告 Tab：实时/周度/年度/建议四子 Tab，数据源 = RK3 局域网 HTTP 服务
                 ReportsScreen()
             }
             composable("messages") {
-                // 消息 Tab = 消息中心（会话列表模式：按发送方内存聚合）；
-                // 会话点击进聊天对话页、对话页视频跳视频播放页、去留言跳留言页
                 MessageCenterScreen(
                     onOpenConversation = { conversationKey ->
                         navController.navigate(Screen.Conversation.createRoute(conversationKey)) {
@@ -199,7 +186,7 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
             }
             composable("my") {
                 val scope = rememberCoroutineScope()
-                MyScreen(
+                FamilyMyV2Screen(
                     onNavigateToProfileEdit = {
                         // 「编辑档案」：跳档案编辑页（只能编辑当前登录家属的档案）
                         navController.navigate(Screen.ProfileEdit.route)
@@ -216,6 +203,15 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                     onNavigateToAuthorizationMgmt = {
                         navController.navigate(Screen.AuthorizationMgmt.route)
                     },
+                    onNavigateToCareCommunity = {
+                        innerNavController.navigate("family_care_community") { launchSingleTop = true }
+                    },
+                    onNavigateToCareHospital = {
+                        innerNavController.navigate("family_care_hospital") { launchSingleTop = true }
+                    },
+                    onNavigateToIncidents = {
+                        innerNavController.navigate("family_incidents") { launchSingleTop = true }
+                    },
                     onOpenMessagesTab = {
                         // 头部消息图标：切底部「消息」Tab
                         innerNavController.navigate("messages") {
@@ -227,6 +223,11 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
                     onLogout = onLogout
                 )
             }
+            // 我的社区 / 我的医院（基础信息 + 对应服务记录）
+            composable("family_care_community") { FamilyCareScreen(side = "community") }
+            composable("family_care_hospital") { FamilyCareScreen(side = "hospital") }
+            // 家属端事件处置时间线
+            composable("family_incidents") { IncidentTimelineScreen() }
         }
     }
 }

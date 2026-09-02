@@ -57,7 +57,8 @@ fun StaffMyScreen(
     onNavigateToBinding: () -> Unit = {},
     onNavigateToFollowUp: () -> Unit = {},
     onNavigateToSchedule: () -> Unit = {},
-    onNavigateToServiceRecord: () -> Unit = {}
+    onNavigateToServiceRecord: () -> Unit = {},
+    bindingLabel: String = "绑定用户"
 ) {
     val context = LocalContext.current
     var staff by remember { mutableStateOf<AppUser?>(null) }
@@ -228,7 +229,7 @@ fun StaffMyScreen(
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                     ServiceGridItem(Icons.Filled.HelpOutline, "帮助中心") { toast("帮助中心") }
                     ServiceGridItem(Icons.Filled.Feedback, "意见反馈") { toast("意见反馈") }
-                    ServiceGridItem(Icons.Filled.Link, "绑定用户", onClick = onNavigateToBinding)
+                    ServiceGridItem(Icons.Filled.Link, bindingLabel, onClick = onNavigateToBinding)
                 }
             }
         }

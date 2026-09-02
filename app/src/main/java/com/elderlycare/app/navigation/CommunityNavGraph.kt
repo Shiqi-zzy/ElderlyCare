@@ -79,7 +79,9 @@ fun CommunityMainScreen(navController: NavHostController, onLogout: () -> Unit) 
                                 navController.navigate(Screen.UserDetail.createRoute(elderlyId))
                             }
                         },
-                        onNavigateToAllTodos = { innerNavController.navigate("community_all_todos") }
+                        onNavigateToAllTodos = { innerNavController.navigate("community_all_todos") },
+                        onNavigateToMap = { innerNavController.navigate("community_map") },
+                        onNavigateToIncidentCenter = { innerNavController.navigate("community_incident_center") }
                     )
                 }
             }
@@ -123,6 +125,17 @@ fun CommunityMainScreen(navController: NavHostController, onLogout: () -> Unit) 
             // 服务记录
             composable("community_service_record") {
                 ServiceRecordScreen(onNavigateBack = { innerNavController.popBackStack() })
+            }
+            // 社区网格大屏（8 栋虚拟网格，告警闪红）
+            composable("community_map") {
+                CommunityMapBoardScreen(
+                    onNavigateBack = { innerNavController.popBackStack() },
+                    onOpenIncidents = { innerNavController.navigate("community_incident_center") }
+                )
+            }
+            // 事件处置中心（联系家属/紧急出警/自行闭环/社区闭环）
+            composable("community_incident_center") {
+                CommunityIncidentCenterScreen(onNavigateBack = { innerNavController.popBackStack() })
             }
             // 全部待办（从工作台待办卡「全部」进入）
             composable("community_all_todos") {

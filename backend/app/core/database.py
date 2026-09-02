@@ -354,6 +354,8 @@ def init_db():
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_dvc_family ON device_verification_codes(family_user_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_dvc_status ON device_verification_codes(status)")
 
+    _create_collab_tables(cursor)
+    _extend_institutions(cursor)
     conn.commit()
     _seed_data(conn)
 
@@ -463,3 +465,145 @@ def _seed_data(conn: sqlite3.Connection):
     print(f"  测试 client_id: test_hospital_001 (医院)")
     print(f"  测试 client_id: test_admin_001 (管理员)")
     print(f"  提示: 正式使用时 App 会自动生成 UUID 作为 client_id")
+
+def _extend_institutions(cursor):
+    """institutions 幂等补列（网格化/前台化所需），已存在则跳过"""
+    exists = {r["name"] for r in cursor.execute("PRAGMA table_info(institutions)").fetchall()}
+    add = {
+        "area_buildings": "TEXT DEFAULT ''",
+        "contact_person": "TEXT DEFAULT ''",
+        "service_area": "TEXT DEFAULT ''",
+        "intro": "TEXT DEFAULT ''",
+    }
+    for col, decl in add.items():
+        if col not in exists:
+            cursor.execute(f"ALTER TABLE institutions ADD COLUMN {col} {decl}")
+
+
+def _create_collab_tables(cursor):
+    """四端协同：事件主表 / 排班 / 服务记录 / 医生处罚 / 医院-社区绑定（幂等）"""
+    # 1. 跌倒等应急事件全生命周期主表（毫秒时间戳，与 App 状态机对齐）
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS incidents (
+            id                     TEXT PRIMARY KEY,
+            incident_no            TEXT NOT NULL UNIQUE,
+            alarm_id               TEXT,
+            elderly_id             TEXT NOT NULL,
+            elderly_name           TEXT NOT NULL DEFAULT '',
+            family_user_id         TEXT,
+            family_phone           TEXT DEFAULT '',
+            community_org_id       TEXT,
+            community_staff_id     TEXT,
+            community_staff_name   TEXT DEFAULT '',
+            building_no            TEXT DEFAULT '',
+            unit_no                TEXT DEFAULT '',
+            room_no                TEXT DEFAULT '',
+            hospital_org_id        TEXT,
+            hospital_doctor_id     TEXT,
+            hospital_doctor_name   TEXT DEFAULT '',
+            alarm_type             TEXT DEFAULT 'FALL',
+            alarm_level            TEXT DEFAULT 'HIGH',
+            status                 TEXT NOT NULL DEFAULT 'RAISED',
+            urgent_count           INTEGER DEFAULT 0,
+            raised_at              INTEGER,
+            community_received_at  INTEGER,
+            family_contacted_at    INTEGER,
+            dispatch_requested_at  INTEGER,
+            hospital_accepted_at   INTEGER,
+            hospital_done_at       INTEGER,
+            closed_at              INTEGER,
+            self_closed_at         INTEGER,
+            last_urgent_at         INTEGER,
+            escalated_at           INTEGER,
+            community_note         TEXT DEFAULT '',
+            hospital_treatment     TEXT DEFAULT '',
+            updated_at             INTEGER,
+            created_at             INTEGER
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_inc_status ON incidents(status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_inc_community ON incidents(community_org_id, community_staff_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_inc_hospital ON incidents(hospital_org_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_inc_family ON incidents(family_user_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_inc_elderly ON incidents(elderly_id)")
+
+    # 2. 工作人员排班（周循环 / 指定日期）
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS staff_schedules (
+            id            TEXT PRIMARY KEY,
+            staff_id      TEXT NOT NULL,
+            staff_name    TEXT DEFAULT '',
+            role          TEXT NOT NULL DEFAULT 'hospital',
+            title         TEXT DEFAULT '',
+            schedule_date INTEGER,
+            start_time    TEXT NOT NULL,
+            end_time      TEXT NOT NULL,
+            location      TEXT DEFAULT '',
+            schedule_mode INTEGER DEFAULT 0,
+            weekday       INTEGER DEFAULT 0,
+            status        TEXT DEFAULT 'active',
+            created_at    INTEGER
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ss_staff ON staff_schedules(staff_id, role)")
+
+    # 3. 服务记录（社区/医院处置双写，完整时间链）
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS service_records (
+            id               TEXT PRIMARY KEY,
+            side             TEXT DEFAULT '',
+            staff_id         TEXT,
+            staff_name       TEXT DEFAULT '',
+            elderly_id       TEXT NOT NULL,
+            elderly_name     TEXT DEFAULT '',
+            service_type     TEXT NOT NULL,
+            content          TEXT DEFAULT '',
+            treatment        TEXT DEFAULT '',
+            incident_id      TEXT,
+            started_at       INTEGER,
+            finished_at      INTEGER,
+            duration_minutes INTEGER DEFAULT 0,
+            created_at       INTEGER
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sr_elderly ON service_records(elderly_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_sr_incident ON service_records(incident_id)")
+
+    # 4. 医生值班处罚/绩效
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS doctor_penalties (
+            id              TEXT PRIMARY KEY,
+            doctor_id       TEXT NOT NULL,
+            doctor_name     TEXT DEFAULT '',
+            hospital_org_id TEXT,
+            incident_id     TEXT,
+            penalty_type    TEXT NOT NULL,
+            level           TEXT DEFAULT 'notice',
+            score_delta     INTEGER DEFAULT 0,
+            reason          TEXT DEFAULT '',
+            status          TEXT DEFAULT 'active',
+            revoked_by      TEXT,
+            revoked_at      INTEGER,
+            created_at      INTEGER
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_dp_doctor ON doctor_penalties(doctor_id, status)")
+
+    # 5. 医院-社区绑定（多对多，管理端审批）
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS hospital_community_bindings (
+            id               TEXT PRIMARY KEY,
+            hospital_org_id  TEXT NOT NULL,
+            community_org_id TEXT NOT NULL,
+            apply_note       TEXT DEFAULT '',
+            status           TEXT DEFAULT 'pending',
+            reviewed_by      TEXT,
+            reviewed_at      INTEGER,
+            review_note      TEXT DEFAULT '',
+            created_at       INTEGER,
+            UNIQUE(hospital_org_id, community_org_id)
+        )
+    """)
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_hcb_hospital ON hospital_community_bindings(hospital_org_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_hcb_community ON hospital_community_bindings(community_org_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_hcb_status ON hospital_community_bindings(status)")

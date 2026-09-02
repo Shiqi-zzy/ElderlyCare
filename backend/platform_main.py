@@ -27,6 +27,7 @@ from app.api.routes import (
     admin,
     work_order,
     alarm,
+    incident,
     ws,
 )
 
@@ -55,6 +56,7 @@ app.include_router(hospital.router)
 app.include_router(admin.router)
 app.include_router(work_order.router)
 app.include_router(alarm.router)
+app.include_router(incident.router)
 app.include_router(ws.router)
 
 

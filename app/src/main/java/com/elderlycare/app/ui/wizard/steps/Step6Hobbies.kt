@@ -108,6 +108,28 @@ fun Step6Hobbies(profile: ElderlyProfile, onUpdate: (ElderlyProfile) -> Unit) {
             }
         }
 
+        SectionTitle("居住位置（社区网格化派单依据）")
+        Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = Surface)) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Text("所在楼栋（固定 1-8 栋，单选）", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                Spacer(modifier = Modifier.height(8.dp))
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    (1..8).forEach { b ->
+                        FilterChip(
+                            selected = profile.buildingNo == b.toString(),
+                            onClick = { onUpdate(profile.copy(communityId = "org_community_01", buildingNo = b.toString())) },
+                            label = { Text("${b}栋") }
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(value = profile.unitNo, onValueChange = { onUpdate(profile.copy(communityId = "org_community_01", unitNo = it)) }, label = { Text("单元") }, singleLine = true, modifier = Modifier.weight(1f))
+                    OutlinedTextField(value = profile.roomNo, onValueChange = { onUpdate(profile.copy(communityId = "org_community_01", roomNo = it)) }, label = { Text("房号，如 201") }, singleLine = true, modifier = Modifier.weight(1f))
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(16.dp))
     }
 }

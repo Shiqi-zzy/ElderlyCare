@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.elderlycare.app.data.community.StaffScheduleRecord
+import com.elderlycare.app.data.incident.ScheduleMode
 import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.data.model.AppUser
 import com.elderlycare.app.ui.components.StatusBadge
@@ -36,6 +37,7 @@ private val CardWhite = Color.White
 private val TextDark = Color(0xFF1A2E25)
 private val TextGray = Color(0xFF6B7C74)
 private val TextHint = Color(0xFF9AA8A2)
+private val WEEK_CN = listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日")
 
 /** 社区端「我的排班」页面：排班列表 + 添加排班 + 完成标记。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -108,7 +110,7 @@ fun StaffScheduleScreen(onNavigateBack: () -> Unit) {
 @Composable
 private fun ScheduleCard(record: StaffScheduleRecord, onComplete: (() -> Unit)?) {
     val isDone = record.status == StaffScheduleRecord.STATUS_DONE
-    val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date(record.scheduleDate))
+    val dateStr = if (record.scheduleMode == ScheduleMode.WEEKLY && record.weekday in 1..7) "每${WEEK_CN[record.weekday - 1]}" else SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date(record.scheduleDate))
     Card(
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = CardWhite),

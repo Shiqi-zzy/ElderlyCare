@@ -17,6 +17,7 @@ fun HospitalMyScreen(
         onNavigateToBinding = onNavigateToBinding,
         onNavigateToFollowUp = onNavigateToFollowUp,
         onNavigateToSchedule = onNavigateToSchedule,
-        onNavigateToServiceRecord = onNavigateToServiceRecord
+        onNavigateToServiceRecord = onNavigateToServiceRecord,
+        bindingLabel = "社区绑定"
     )
 }

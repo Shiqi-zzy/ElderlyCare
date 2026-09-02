@@ -65,6 +65,16 @@ data class OrganizationEntity(
     val name: String,
     /** 机构类型：OrganizationType.name（COMMUNITY / HOSPITAL） */
     val type: String = OrganizationType.COMMUNITY.name,
+    /** 联系人 */
+    val contactPerson: String = "",
+    /** 联系电话（预留电话，详情可拨打） */
+    val contactPhone: String = "",
+    /** 机构地址 */
+    val address: String = "",
+    /** 服务/覆盖范围 */
+    val serviceArea: String = "",
+    /** 机构简介 */
+    val intro: String = "",
     val createdAt: Long = 0L
 )
 

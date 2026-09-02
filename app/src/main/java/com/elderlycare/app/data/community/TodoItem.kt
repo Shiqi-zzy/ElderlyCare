@@ -20,7 +20,11 @@ data class TodoItem(
     val priority: String = PRIORITY_NORMAL,
     val status: String = STATUS_PENDING,
     val createdAt: Long,
-    val completedAt: Long? = null
+    val completedAt: Long? = null,
+    /** 关联事件 id（跌倒事件待办用） */
+    val incidentId: Long? = null,
+    /** 待办子类型（如 FALL_DISPATCH） */
+    val todoSubType: String = ""
 ) {
     companion object {
         const val STATUS_PENDING = "待处理"

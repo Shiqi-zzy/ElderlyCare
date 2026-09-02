@@ -67,7 +67,9 @@ private val MetricGreen = Color(0xFF42BD67)
 fun CommunityDashboardScreen(
     onLogout: () -> Unit = {},
     onUserClick: (String) -> Unit = {},
-    onNavigateToAllTodos: () -> Unit = {}
+    onNavigateToAllTodos: () -> Unit = {},
+    onNavigateToMap: () -> Unit = {},
+    onNavigateToIncidentCenter: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     var staff by remember { mutableStateOf<AppUser?>(null) }
@@ -184,6 +186,19 @@ fun CommunityDashboardScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // ===== 内嵌迷你网格大屏（直接展示，无需点入；可点全屏放大） =====
+        CommunityMiniGrid(onExpand = onNavigateToMap, onAlarmClick = onNavigateToIncidentCenter)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // ===== 四端协同应急联动入口 =====
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            EmergencyEntry(Modifier.weight(1f), Icons.Filled.Dashboard, "社区网格大屏", "8 栋网格 · 告警闪红", MetricBlue, onNavigateToMap)
+            EmergencyEntry(Modifier.weight(1f), Icons.Filled.NotificationsActive, "事件处置中心", "跌倒告警 · 出警闭环", MetricRed, onNavigateToIncidentCenter)
+        }
+        Spacer(modifier = Modifier.height(16.dp))
         // ===== 今日概览 =====
         Text(
             "今日概览",
@@ -532,4 +547,35 @@ private fun MetricDetailDialog(title: String, items: List<AccessibleElderlyUi>, 
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text("关闭") } }
     )
+}
+
+
+/** 应急联动入口小卡（网格大屏 / 事件处置中心） */
+@Composable
+private fun EmergencyEntry(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    title: String,
+    sub: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(38.dp).clip(RoundedCornerShape(10.dp)).background(tint.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) { Icon(icon, null, tint = tint, modifier = Modifier.size(22.dp)) }
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(title, color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Text(sub, color = TextGray, fontSize = 11.sp)
+            }
+        }
+    }
 }

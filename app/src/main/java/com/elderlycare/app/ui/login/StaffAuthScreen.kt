@@ -36,7 +36,7 @@ import kotlinx.coroutines.launch
  *
  * 登录/注册均写入 `UserStore`（staff_data DataStore），与家属账号体系完全隔离。
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun StaffAuthScreen(
     role: UserRole,
@@ -58,6 +58,10 @@ internal fun StaffAuthScreen(
     val orgOptions = remember { mutableStateListOf<OrganizationEntity>() }
     var selectedOrgId by remember { mutableStateOf<String?>(null) }
     var orgMenuExpanded by remember { mutableStateOf(false) }
+    // 机构搜索框文本（可输入，按相似度实时过滤下拉）
+    var orgQuery by remember { mutableStateOf("") }
+    // 社区网格员负责楼栋多选（固定 1-8 栋，一人可多栋、暂不共管）
+    val selectedBuildings = remember { mutableStateListOf<Int>() }
     LaunchedEffect(role) {
         val defaultOrg = OrganizationEntity(
             id = if (role == UserRole.COMMUNITY) SeedData.COMMUNITY_ORG_ID else SeedData.HOSPITAL_ORG_ID,
@@ -71,9 +75,13 @@ internal fun StaffAuthScreen(
         orgOptions.addAll(all)
         if (selectedOrgId == null || all.none { it.id == selectedOrgId }) {
             selectedOrgId = all.first().id
+            orgQuery = all.first().name
         }
     }
-    val selectedOrgName = orgOptions.firstOrNull { it.id == selectedOrgId }?.name ?: ""
+    // 输入框文本实时模糊匹配（空串显示全部；名称包含关键字即命中，忽略大小写）
+    val filteredOrgs = orgOptions.filter {
+        orgQuery.isBlank() || it.name.contains(orgQuery.trim(), ignoreCase = true)
+    }
 
     fun submit() {
         if (loading) return
@@ -86,6 +94,7 @@ internal fun StaffAuthScreen(
             isRegister && nm.isBlank() -> "请输入姓名"
             isRegister && pwd != confirmPassword.trim() -> "两次输入的密码不一致"
             isRegister && selectedOrgId.isNullOrBlank() -> "请选择所属机构"
+            isRegister && role == UserRole.COMMUNITY && selectedBuildings.isEmpty() -> "请至少选择一栋负责楼栋"
             else -> null
         }
         if (error != null) return
@@ -104,6 +113,7 @@ internal fun StaffAuthScreen(
                         organizationId = selectedOrgId,
                         // 新注册默认工作资格「审核中」，需审核通过后才能使用业务功能
                         qualification = QualificationStatus.PENDING.name,
+                        areaBuildings = if (role == UserRole.COMMUNITY) selectedBuildings.sorted().map { it.toString() } else emptyList(),
                         createdAt = System.currentTimeMillis()
                     )
                 )
@@ -204,11 +214,11 @@ internal fun StaffAuthScreen(
                     onExpandedChange = { orgMenuExpanded = it }
                 ) {
                     OutlinedTextField(
-                        value = selectedOrgName,
-                        onValueChange = {},
-                        readOnly = true,
+                        value = orgQuery,
+                        onValueChange = { orgQuery = it; selectedOrgId = null; orgMenuExpanded = true },
+                        // 可直接输入机构名称进行模糊搜索
                         singleLine = true,
-                        label = { Text("所属机构") },
+                        label = { Text("所属机构（可输入关键字搜索）") },
                         trailingIcon = { Icon(Icons.Filled.ArrowDropDown, null) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -218,13 +228,30 @@ internal fun StaffAuthScreen(
                         expanded = orgMenuExpanded,
                         onDismissRequest = { orgMenuExpanded = false }
                     ) {
-                        orgOptions.forEach { org ->
+                        filteredOrgs.forEach { org ->
                             DropdownMenuItem(
                                 text = { Text(org.name) },
                                 onClick = {
                                     selectedOrgId = org.id
+                                    orgQuery = org.name
                                     orgMenuExpanded = false
                                 }
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(14.dp))
+                if (role == UserRole.COMMUNITY) {
+                    Text("负责楼栋（固定 1-8 栋，可多选；同一栋暂不共管）", style = MaterialTheme.typography.labelLarge, color = TextSecondary)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        (1..8).forEach { b ->
+                            FilterChip(
+                                selected = selectedBuildings.contains(b),
+                                onClick = {
+                                    if (selectedBuildings.contains(b)) selectedBuildings.remove(b) else selectedBuildings.add(b)
+                                },
+                                label = { Text("${b}栋") }
                             )
                         }
                     }

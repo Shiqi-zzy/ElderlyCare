@@ -71,7 +71,12 @@ data class ElderlyProfile(
     val deviceBound: Boolean = false,
     val snInputMode: SnInputMode = SnInputMode.SCAN, // SN 绑定方式
     /** 设备有未处理告警（三端一 App 共享：家属端收告警置 true，社区/医院标记已处理置 false） */
-    val alertActive: Boolean = false
+    val alertActive: Boolean = false,
+// —— 居住位置（社区网格化派单前提）——
+val communityId: String = "",   // 所属社区机构 id
+val buildingNo: String = "",    // 楼栋（固定 1~8 栋）
+val unitNo: String = "",        // 单元
+val roomNo: String = ""         // 房号
 )
 
 // ===== 枚举类型 =====

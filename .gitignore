@@ -27,3 +27,9 @@ backend/media/
 # UI 设计参考图（不入库）
 live_target_style.png
 reference_welcome.png
+
+# 构建/运行日志与本地数据库
+*.log
+*.db
+*.db-shm
+*.db-wal
