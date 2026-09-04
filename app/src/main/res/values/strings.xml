@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">萤石养老看护</string>
+    <string name="app_name">银龄心语</string>
 
     <!-- ===== 留言模块 ===== -->
     <string name="message_title">留言</string>

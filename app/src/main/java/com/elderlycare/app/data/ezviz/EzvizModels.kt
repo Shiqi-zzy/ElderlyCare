@@ -117,3 +117,26 @@ data class AlarmDto(
     val deviceName: String? = null,
     val preRecordUrl: String? = null
 )
+
+/**
+ * 录像文件列表（api/lapp/video/by/time 非分页返回，data 为数组）。
+ * startTime/endTime 为毫秒时间戳。
+ */
+data class RecordFileDto(
+    val recType: Int = 0,               // 2=本地录像
+    val startTime: Long = 0,            // 毫秒
+    val endTime: Long = 0,              // 毫秒
+    val deviceSerial: String? = null,
+    val channelNo: Int? = null,
+    val localType: String? = null,      // ALARM / TIMING / IO
+    val videoLong: Long = 0             // 录像时长（毫秒）
+)
+
+/**
+ * 录像文件列表（分页结构返回，version=2.0 且 pageSize 非空时）。
+ */
+data class RecordFilePageDto(
+    val files: List<RecordFileDto>? = null,
+    val isAll: Boolean? = null,
+    val nextFileTime: Long? = null
+)

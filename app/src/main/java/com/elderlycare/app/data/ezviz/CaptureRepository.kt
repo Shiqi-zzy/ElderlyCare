@@ -7,9 +7,11 @@ import com.elderlycare.app.ui.ezviz.LocalMediaCapture
 import com.google.gson.Gson
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.net.URI
 
 /**
  * 抓拍仓库：手动抓拍（SDK 本地抓帧上传）/ 全部抓拍列表 / 已读 / 未读数 / 设备验证码上报。
@@ -101,14 +103,25 @@ class CaptureRepository(
             ?.takeUnless { it.isJsonNull }?.asInt ?: 0
     }
 
-    /** 设备验证码上报（绑定成功后调用；幂等 upsert，重绑/补同步可重复调用）。 */
+    /** 设备验证码上报（绑定成功后调用；幂等 upsert，重绑/补同步可重复调用）。
+     *  8s 超时：防止手机热点隔离/局域网不可达时无限「同步中…」；日志记录 RK3 IP、SN、返回结果。 */
     suspend fun uploadDeviceAuth(deviceSerial: String, validateCode: String): Result<Unit> = runCatching {
-        val resp = api.uploadDeviceAuth(
-            DeviceAuthRequestBody(deviceSerial = deviceSerial, validateCode = validateCode)
-        )
+        val host = runCatching { URI(BuildConfig.RTC_BACKEND_URL).host }.getOrNull() ?: BuildConfig.RTC_BACKEND_URL
+        Log.d(TAG, "设备同步开始 SN=$deviceSerial IP=$host validateCode=$validateCode")
+        val resp = withTimeoutOrNull(8_000) {
+            api.uploadDeviceAuth(
+                DeviceAuthRequestBody(deviceSerial = deviceSerial, validateCode = validateCode)
+            )
+        } ?: run {
+            Log.w(TAG, "设备同步超时 SN=$deviceSerial IP=$host（8s 无响应，疑似热点隔离/局域网不可达）")
+            throw CaptureException("设备同步超时")
+        }
+        Log.d(TAG, "设备同步返回 SN=$deviceSerial IP=$host code=${resp.code} message=${resp.message}")
         if (resp.code != 200) {
+            Log.w(TAG, "设备同步失败 SN=$deviceSerial IP=$host code=${resp.code} message=${resp.message}")
             throw CaptureException(resp.message.ifBlank { "设备信息同步失败" })
         }
+        Log.d(TAG, "设备同步成功 SN=$deviceSerial IP=$host")
     }
 
     /** 后端相对图片路径 → 完整 URL（后端零硬编码 IP，App 用 RTC_BACKEND_URL 拼接）。 */

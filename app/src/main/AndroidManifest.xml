@@ -24,7 +24,7 @@
         android:name=".ElderlyCareApp"
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher_foreground"
-        android:label="萤石养老看护"
+        android:label="银龄心语"
         android:supportsRtl="true"
         android:theme="@style/Theme.ElderlyCare"
         android:usesCleartextTraffic="true">

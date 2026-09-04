@@ -91,6 +91,10 @@ interface MessageDao {
     @Query("UPDATE message SET isRead = :isRead WHERE remoteId = :remoteId")
     suspend fun updateIsReadByRemoteId(remoteId: String, isRead: Boolean)
 
+    /** 按远端 id 回填抓拍图 URL（SDK 拉到 alarmPicUrl 后旧报警消息补图） */
+    @Query("UPDATE message SET thumbUrl = :thumbUrl WHERE remoteId = :remoteId")
+    suspend fun updateThumbByRemoteId(remoteId: String, thumbUrl: String)
+
     // ===== 绑定申请提醒（SYSTEM 消息，remoteId 前缀 binding_） =====
 
     /**

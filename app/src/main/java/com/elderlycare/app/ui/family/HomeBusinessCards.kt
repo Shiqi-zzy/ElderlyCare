@@ -130,7 +130,7 @@ internal fun AuthorizationSummaryCard(onClick: () -> Unit) {
             Spacer(modifier = Modifier.height(6.dp))
             Surface(shape = RoundedCornerShape(10.dp), color = Primary.copy(alpha = 0.06f), modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) { Text("幸福社区养老驿站", style = MaterialTheme.typography.bodyMedium); Text("有效期至 2024-12-31", style = MaterialTheme.typography.labelSmall, color = TextHint) }
+                    Column(modifier = Modifier.weight(1f)) { Text("幸福社区照护驿站", style = MaterialTheme.typography.bodyMedium); Text("有效期至 2024-12-31", style = MaterialTheme.typography.labelSmall, color = TextHint) }
                     StatusBadge(text = "生效中", color = StatusGreen)
                 }
             }

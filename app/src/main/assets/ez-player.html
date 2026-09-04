@@ -238,6 +238,37 @@ html, body {
             }
             EZOPENDemo = new EZUIKit.EZUIKitPlayer(playerOptions);
             window.EZOPENDemo = EZOPENDemo;
+            // ---------- 云台调用诊断包装：抓 H5 JSSDK 云台 startPTZ/stopPTZ 是否被触发、参数与回调 ----------
+            try {
+                var ptzWrap = function(name) {
+                    var orig = EZOPENDemo[name];
+                    if (typeof orig !== 'function') {
+                        console.log('[ez-player] 云台诊断: 无 ' + name + ' 方法');
+                        return;
+                    }
+                    EZOPENDemo[name] = function() {
+                        var args = Array.prototype.slice.call(arguments);
+                        console.log('[ez-player] 云台 ' + name + ' 被调用 args=' + JSON.stringify(args));
+                        var cb = (typeof args[args.length - 1] === 'function') ? args[args.length - 1] : null;
+                        if (cb) {
+                            args[args.length - 1] = function() {
+                                var cbArgs = Array.prototype.slice.call(arguments);
+                                console.log('[ez-player] 云台 ' + name + ' 回调: ' + JSON.stringify(cbArgs));
+                                return cb.apply(this, cbArgs);
+                            };
+                        }
+                        var r;
+                        try { r = orig.apply(this, args); }
+                        catch (e) { console.log('[ez-player] 云台 ' + name + ' 调用异常: ' + e.message); throw e; }
+                        console.log('[ez-player] 云台 ' + name + ' 返回: ' + r);
+                        return r;
+                    };
+                };
+                ptzWrap('startPTZ');
+                ptzWrap('stopPTZ');
+            } catch (e) {
+                console.log('[ez-player] 云台诊断包装异常: ' + e.message);
+            }
             showStatus('正在连接设备取流…');
         } catch (e) {
             hideStatus();
@@ -247,13 +278,25 @@ html, body {
     showStatus('页面就绪，参数校验通过，开始初始化播放器…');
     initPlayer();
 
-    /* ---------- 6. 窗口 resize / 转屏自适应（热更新尺寸，优先用 SDK 的 setWidth/setHeight） ---------- */
+    /* ---------- 6. 窗口 resize / 转屏自适应（热更新尺寸，优先用 SDK 的 setWidth/setHeight） ----------
+     * 修复：重复的 resize/orientationchange 事件（如 App 布局微调、系统 UI 抖动）此前每次都会
+     * 重建播放器，导致「云台初始化」反复出现、云台控制被中断。现仅当尺寸真正变化时才重建。 */
     var resizeTimer = null;
+    var lastSizeW = 0;
+    var lastSizeH = 0;
     function onResize() {
         if (resizeTimer) clearTimeout(resizeTimer);
         resizeTimer = setTimeout(function () {
             if (!EZOPENDemo) return;
             var size = currentSize();
+            console.log('[ez-player] resize 事件 当前=' + size.width + 'x' + size.height +
+                ' 上次=' + lastSizeW + 'x' + lastSizeH);
+            if (size.width === lastSizeW && size.height === lastSizeH) {
+                // 尺寸未实际变化：忽略，避免播放器被反复重建（重建会重新初始化云台）
+                return;
+            }
+            lastSizeW = size.width;
+            lastSizeH = size.height;
             if (typeof EZOPENDemo.setWidth === 'function' && typeof EZOPENDemo.setHeight === 'function') {
                 try {
                     EZOPENDemo.setWidth(size.width);
@@ -276,6 +319,50 @@ html, body {
     }
     window.addEventListener('beforeunload', release);
     window.addEventListener('unload', release);
+
+    /* ---------- 8. 云台链路诊断（临时）：全局触摸捕获 + fetch 拦截，定位云台为何无反应 ---------- */
+    function _tagOf(el) {
+        if (!el) return '(null)';
+        return (el.tagName || '') + '#id=' + (el.id || '') + '.cls=' + String(el.className || '');
+    }
+    document.addEventListener('touchstart', function (e) {
+        console.log('[ez-player] 触摸 touchstart -> ' + _tagOf(e.target));
+    }, true);
+    document.addEventListener('touchend', function (e) {
+        console.log('[ez-player] 触摸 touchend  -> ' + _tagOf(e.target));
+    }, true);
+    document.addEventListener('mousedown', function (e) {
+        console.log('[ez-player] 鼠标 mousedown -> ' + _tagOf(e.target));
+    }, true);
+    document.addEventListener('mouseup', function (e) {
+        console.log('[ez-player] 鼠标 mouseup   -> ' + _tagOf(e.target));
+    }, true);
+    try {
+        var _origFetch = window.fetch;
+        window.fetch = function () {
+            var args = Array.prototype.slice.call(arguments);
+            var u = String(args[0] || '');
+            if (u.indexOf('ptz') >= 0 || u.indexOf('device') >= 0) {
+                console.log('[ez-player] fetch -> ' + u);
+            }
+            return _origFetch.apply(this, args).then(function (res) {
+                if (u.indexOf('ptz') >= 0) {
+                    res.clone().json().then(function (j) {
+                        console.log('[ez-player] fetch ptz 响应: ' + JSON.stringify(j));
+                    }).catch(function () { });
+                }
+                return res;
+            }).catch(function (err) {
+                if (u.indexOf('ptz') >= 0) {
+                    console.log('[ez-player] fetch ptz 异常: ' + (err && err.message ? err.message : err));
+                }
+                throw err;
+            });
+        };
+        console.log('[ez-player] fetch 包装完成');
+    } catch (e) {
+        console.log('[ez-player] fetch 包装失败: ' + e.message);
+    }
 })();
 </script>
 </body>

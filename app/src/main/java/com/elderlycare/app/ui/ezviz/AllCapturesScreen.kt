@@ -158,7 +158,7 @@ fun AllCapturesScreen(
                     "这里集中展示两类抓拍快照：\n" +
                         "• 手动抓拍：在实时视频预览页点击截图按钮，设备即时抓拍一张快照（两次间隔至少 4 秒）；\n" +
                         "• 设备告警抓拍：设备检测到人形活动时自动抓拍上传。\n\n" +
-                        "快照只保存在后端，点按条目可标记已读；「抓拍计划」可查看视频加密授权提示。",
+                        "快照由设备检测到人形/移动活动时自动抓拍上传（萤石云直连），点按条目可标记已读；「抓拍计划」可查看视频加密授权提示。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = TextSecondary
                 )
@@ -215,7 +215,7 @@ private fun EmptyStateImage(painter: androidx.compose.ui.graphics.painter.Painte
 
 @Composable
 private fun CaptureRow(item: CaptureItem, onClick: () -> Unit) {
-    val imageUrl = ServiceLocator.captureRepository.resolveImageUrl(item.localPicUrl)
+    val imageUrl = item.picUrl // SDK 萤石云告警抓拍图（公网直连，无需本地后端拼接）
     Surface(
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
         color = if (!item.isRead) Primary.copy(alpha = 0.06f) else Surface

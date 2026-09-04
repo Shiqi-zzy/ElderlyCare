@@ -40,7 +40,7 @@ fun HospitalWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("医院端 - 医疗资质认证", fontWeight = FontWeight.SemiBold) },
+                title = { Text("医护管理 - 医疗资质认证", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     if (currentStep > 1) {
                         IconButton(onClick = { currentStep-- }) {

@@ -14,7 +14,7 @@ fun CommunityLoginScreen(
 ) {
     StaffAuthScreen(
         role = UserRole.COMMUNITY,
-        endName = "社区",
+        endName = "社区管护",
         accent = Secondary,
         onLoginSuccess = onLoginSuccess,
         onBack = onBack

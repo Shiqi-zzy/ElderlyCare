@@ -164,7 +164,7 @@ private fun TimeInfo(icon: ImageVector, label: String, time: String) {
  * 本账号 ACTIVE 绑定关系，支持解除绑定。
  */
 @Composable
-fun BoundUsersPanel(staffPhone: String) {
+fun BoundUsersPanel(staffPhone: String, elderWord: String = "服务对象") {
     val scope = rememberCoroutineScope()
     var bindings by remember { mutableStateOf<List<BindingUi>>(emptyList()) }
     var revokingId by remember { mutableStateOf<String?>(null) }
@@ -196,7 +196,7 @@ fun BoundUsersPanel(staffPhone: String) {
         }
 
         if (bindings.isEmpty()) {
-            EmptyStateCard(Icons.Filled.PersonOff, "暂未绑定老人")
+            EmptyStateCard(Icons.Filled.PersonOff, "暂未绑定$elderWord")
         } else {
             bindings.forEach { b ->
                 BoundUserCard(

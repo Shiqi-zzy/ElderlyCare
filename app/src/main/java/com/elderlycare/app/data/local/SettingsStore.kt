@@ -11,6 +11,19 @@ class SettingsStore(context: Context) {
     private val prefs: SharedPreferences =
         context.applicationContext.getSharedPreferences("app_settings", Context.MODE_PRIVATE)
 
+    /**
+     * 居家用户使用角色（门户选择「居家用户」后弹窗单选，选择后记住）。
+     * - "self"：使用人本人
+     * - "family"：家属及居家照料人
+     * - 空串：尚未选择（下次进入门户需重新弹窗）
+     */
+    fun getFamilyUserRole(): String =
+        prefs.getString(KEY_FAMILY_USER_ROLE, "").orEmpty()
+
+    fun setFamilyUserRole(role: String) {
+        prefs.edit().putString(KEY_FAMILY_USER_ROLE, role).apply()
+    }
+
     /** 告警片段保留天数（默认 7 天） */
     fun getAlarmRetentionDays(): Int =
         prefs.getInt(KEY_RETENTION_DAYS, DEFAULT_RETENTION_DAYS)
@@ -66,6 +79,7 @@ class SettingsStore(context: Context) {
     }
 
     companion object {
+        private const val KEY_FAMILY_USER_ROLE = "family_user_role"
         private const val KEY_RETENTION_DAYS = "alarm_retention_days"
         private const val KEY_RK3_MEDIA_MOCK = "rk3_media_mock"
         private const val KEY_RK3_SERVER_ADDRESS = "rk3_server_address"

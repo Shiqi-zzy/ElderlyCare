@@ -119,14 +119,19 @@ class EzvizSdkManager {
         action: EZConstants.EZPTZAction,
         speed: Int = EZConstants.PTZ_SPEED_DEFAULT
     ): Boolean = withContext(Dispatchers.IO) {
-        if (!initialized) return@withContext false
-        try {
-            EZOpenSDK.getInstance().controlPTZ(deviceSerial, channelNo, command, action, speed)
+        if (!initialized) {
+            Log.e(TAG, "controlPtz: SDK 未初始化，serial=$deviceSerial cmd=$command action=$action")
+            return@withContext false
+        }
+        return@withContext try {
+            val ok = EZOpenSDK.getInstance().controlPTZ(deviceSerial, channelNo, command, action, speed)
+            Log.i(TAG, "controlPtz serial=$deviceSerial ch=$channelNo cmd=$command action=$action speed=$speed -> $ok")
+            ok
         } catch (e: BaseException) {
-            Log.e(TAG, "云台控制失败 code=${e.errorCode}", e)
+            Log.e(TAG, "云台控制失败 code=${e.errorCode} serial=$deviceSerial cmd=$command action=$action", e)
             false
         } catch (e: Exception) {
-            Log.e(TAG, "云台控制异常", e)
+            Log.e(TAG, "云台控制异常 serial=$deviceSerial cmd=$command action=$action", e)
             false
         }
     }

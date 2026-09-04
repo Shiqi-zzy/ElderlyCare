@@ -104,7 +104,7 @@ fun CommunityQualificationScreen() {
             }
             Spacer(modifier = Modifier.width(8.dp))
             Column {
-                Text("ElderlyCare", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("银龄心语", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("社区端 · 工作资格", color = TextGray, fontSize = 11.sp)
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -191,7 +191,7 @@ fun CommunityQualificationScreen() {
         CertificateItem(
             icon = Icons.Filled.Verified,
             iconBg = QualGreen,
-            title = "养老护理员证",
+            title = "照护护理员证",
             status = "已认证",
             statusColor = StatusGreen,
             detail1 = "证书编号：210***********28",

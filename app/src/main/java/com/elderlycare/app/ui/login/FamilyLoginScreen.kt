@@ -70,7 +70,7 @@ fun FamilyLoginScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isRegister) "家属注册" else "家属登录", fontWeight = FontWeight.SemiBold) },
+                title = { Text(if (isRegister) "居家用户注册" else "居家用户登录", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
@@ -87,10 +87,10 @@ fun FamilyLoginScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 24.dp)
         ) {
-            Text("欢迎使用萤石养老看护", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("欢迎使用银龄心语", fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = if (isRegister) "首次使用请注册家属账号" else "登录后自动恢复您的看护数据",
+                text = if (isRegister) "首次使用请注册居家用户账号" else "登录后自动恢复您的看护数据",
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary
             )

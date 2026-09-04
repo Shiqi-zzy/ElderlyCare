@@ -16,8 +16,8 @@ import com.elderlycare.app.data.ezviz.ServiceLocator
 import com.elderlycare.app.ui.family.FamilyCareScreen
 import com.elderlycare.app.ui.family.FamilyHomeScreen
 import com.elderlycare.app.ui.family.FamilyMyV2Screen
+import com.elderlycare.app.ui.family.FamilyWelcomeScreen
 import com.elderlycare.app.ui.family.IncidentTimelineScreen
-import com.elderlycare.app.ui.login.WelcomeScreen
 import com.elderlycare.app.ui.message.MessageCenterScreen
 import com.elderlycare.app.ui.reports.ReportsScreen
 import com.elderlycare.app.ui.reminder.RemindPlanCalendarScreen
@@ -94,9 +94,9 @@ fun FamilyMainScreen(navController: NavHostController, onLogout: () -> Unit) {
             startDestination = "family_welcome",
             modifier = Modifier.padding(paddingValues)
         ) {
-            // 家属端欢迎页（点击进入首页）
+            // 居家用户「进入加载页」：真实加载设备后自动进入首页
             composable("family_welcome") {
-                WelcomeScreen(
+                FamilyWelcomeScreen(
                     onEnter = { innerNavController.navigate("home") }
                 )
             }

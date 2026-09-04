@@ -161,7 +161,7 @@ private fun BuildingBlock(cell: BuildingCell, alarmPhase: Float, modifier: Modif
                 Text(cell.staffName ?: "未分配", color = Gray, fontSize = 12.sp)
             }
             Spacer(Modifier.height(2.dp))
-            Text("老人 ${cell.elderlyCount} 人", color = Gray, fontSize = 12.sp)
+            Text("服务对象 ${cell.elderlyCount} 人", color = Gray, fontSize = 12.sp)
             if (cell.hasAlarm) {
                 Spacer(Modifier.height(2.dp))
                 Text("告警 ${cell.activeIncidentCount} 起 · 点击处置", color = Red, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)

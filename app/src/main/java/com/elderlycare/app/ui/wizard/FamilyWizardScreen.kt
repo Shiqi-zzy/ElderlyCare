@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.elderlycare.app.R
 import com.elderlycare.app.data.ezviz.EzvizAgentMemoryUtil
 import com.elderlycare.app.data.ezviz.ServiceLocator
@@ -32,21 +33,52 @@ fun FamilyWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
     var currentStep by remember { mutableIntStateOf(1) }
     var profile by remember { mutableStateOf(ElderlyProfile()) }
     var showNotice by remember { mutableStateOf(false) }
-    // 第 6 步设备验证码是否已同步后端（device_auth）；已绑定设备且未同步时禁用【完成】
+    // 第 6/7 步设备验证码是否已同步后端（device_auth）；已绑定设备且未同步时禁用【完成】
     var backendSynced by remember { mutableStateOf(false) }
     val scrollState = rememberScrollState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // 使用角色：self=使用人本人，family=家属及居家照料人
+    val role = remember { ServiceLocator.settingsStore.getFamilyUserRole() }
+    val isSelf = role == "self"
+    // 统一 7 步；使用人本人跳过第 2 步（个人/关系），基础填完直接到第 3 步「生活习惯」
+    val totalSteps = 7
+    val deviceStep = totalSteps // 设备绑定始终是最后一步
+    val stepSeq = if (isSelf) listOf(1, 3, 4, 5, 6, 7) else listOf(1, 2, 3, 4, 5, 6, 7)
+
+    val goPrev: () -> Unit = {
+        val idx = stepSeq.indexOf(currentStep)
+        if (idx > 0) currentStep = stepSeq[idx - 1]
+    }
+    val goNext: () -> Unit = {
+        val idx = stepSeq.indexOf(currentStep)
+        if (idx < stepSeq.size - 1) currentStep = stepSeq[idx + 1] else showNotice = true
+    }
 
     LaunchedEffect(currentStep) { scrollState.animateScrollTo(0) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("档案录入", fontWeight = FontWeight.SemiBold) },
+                title = {
+                    Column {
+                        Text(
+                            text = if (isSelf) "档案录入" else "照看对象档案录入",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        if (!isSelf) {
+                            Text(
+                                text = "提示：此处填写被照看对象资料，非登录账号本人信息",
+                                fontSize = 11.sp,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     if (currentStep > 1) {
-                        IconButton(onClick = { currentStep-- }) {
+                        IconButton(onClick = goPrev) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "上一步")
                         }
                     }
@@ -59,40 +91,73 @@ fun FamilyWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {}) {
         },
         bottomBar = {
             Surface(shadowElevation = 8.dp, color = Surface) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    if (currentStep > 1) {
-                        OutlinedButton(onClick = { currentStep-- }, shape = RoundedCornerShape(24.dp), modifier = Modifier.weight(1f).padding(end = 8.dp)) { Text("上一步") }
-                    } else { Spacer(modifier = Modifier.weight(1f)) }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Button(
-                        onClick = { if (currentStep < 6) currentStep++ else showNotice = true },
-                        shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = Primary), modifier = Modifier.weight(1f),
-                        // 保留「可不绑定设备完成向导」自由度；已绑定设备则必须验证码已同步后端
-                        enabled = currentStep < 6 || !profile.deviceBound || backendSynced
+                Column {
+                    // 使用人本人：一键跳过档案（跳过 1~总步数-1，直达设备绑定）
+                    if (isSelf && currentStep < deviceStep) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            TextButton(onClick = { currentStep = deviceStep }) {
+                                Text("一键跳过，直接绑定设备", color = Primary, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(Icons.Filled.ArrowForward, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (currentStep < 6) "下一步" else "完成")
+                        if (currentStep > 1) {
+                            OutlinedButton(onClick = goPrev, shape = RoundedCornerShape(24.dp), modifier = Modifier.weight(1f).padding(end = 8.dp)) { Text("上一步") }
+                        } else { Spacer(modifier = Modifier.weight(1f)) }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Button(
+                            onClick = goNext,
+                            shape = RoundedCornerShape(24.dp), colors = ButtonDefaults.buttonColors(containerColor = Primary), modifier = Modifier.weight(1f),
+                            // 保留「可不绑定设备完成向导」自由度；已绑定设备则必须验证码已同步后端
+                            enabled = currentStep < totalSteps || !profile.deviceBound || backendSynced
+                        ) {
+                            Icon(Icons.Filled.ArrowForward, null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (currentStep < totalSteps) "下一步" else "完成")
+                        }
                     }
                 }
             }
         }
     ) { paddingValues ->
         Column(modifier = Modifier.fillMaxSize().padding(paddingValues)) {
-            StepIndicator(currentStep = currentStep)
+            StepIndicator(
+                currentStep = currentStep,
+                totalSteps = totalSteps,
+                stepLabels = listOf("1", "2", "3", "4", "5", "6", "7"),
+                stepTexts = if (isSelf) listOf("基础信息", "个人", "生活习惯", "疾病史", "体检记录", "兴趣爱好", "设备绑定")
+                else listOf("基础信息", "照看对象", "生活习惯", "疾病史", "体检记录", "兴趣爱好", "设备绑定")
+            )
             HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
             Column(modifier = Modifier.weight(1f).verticalScroll(scrollState).padding(16.dp)) {
                 AnimatedContent(targetState = currentStep, transitionSpec = { fadeIn() + slideInHorizontally { it / 4 } togetherWith fadeOut() + slideOutHorizontally { -it / 4 } }, label = "familyWizard") { step ->
-                    when (step) {
-                        1 -> Step1BasicInfo(profile) { profile = it }
-                        2 -> Step2Lifestyle(profile) { profile = it }
-                        3 -> Step3MedicalHistory(profile) { profile = it }
-                        4 -> Step5PhysicalExam(profile) { profile = it }
-                        5 -> Step6Hobbies(profile) { profile = it }
-                        6 -> Step7DeviceBinding(profile, { profile = it }, backendSynced) { backendSynced = it }
+                    if (isSelf) {
+                        // 使用人本人：跳过第 2 步（个人），第 3 步起为生活习惯
+                        when (step) {
+                            1 -> Step1BasicInfo(profile) { profile = it }
+                            3 -> Step2Lifestyle(profile) { profile = it }
+                            4 -> Step3MedicalHistory(profile) { profile = it }
+                            5 -> Step5PhysicalExam(profile) { profile = it }
+                            6 -> Step6Hobbies(profile) { profile = it }
+                            7 -> Step7DeviceBinding(profile, { profile = it }, backendSynced) { backendSynced = it }
+                        }
+                    } else {
+                        // 家属及居家照料人：第 2 步为与照看对象关系
+                        when (step) {
+                            1 -> Step1BasicInfo(profile) { profile = it }
+                            2 -> StepRelation(profile) { profile = it }
+                            3 -> Step2Lifestyle(profile) { profile = it }
+                            4 -> Step3MedicalHistory(profile) { profile = it }
+                            5 -> Step5PhysicalExam(profile) { profile = it }
+                            6 -> Step6Hobbies(profile) { profile = it }
+                            7 -> Step7DeviceBinding(profile, { profile = it }, backendSynced) { backendSynced = it }
+                        }
                     }
                 }
             }

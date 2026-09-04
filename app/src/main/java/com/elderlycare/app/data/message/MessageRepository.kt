@@ -717,9 +717,12 @@ class MessageRepository(
             val alarmId = alarm.alarmId
             if (alarmId.isBlank()) continue
 
-            // 幂等：已存在只同步已读状态（不重复插入）
+            // 幂等：已存在只同步已读状态（不重复插入）；SDK 拉到图后回填旧消息缩略图
             if (dao.getByRemoteId(alarmId) != null) {
                 dao.updateIsReadByRemoteId(alarmId, alarm.isRead)
+                if (!alarm.alarmPicUrl.isNullOrBlank()) {
+                    dao.updateThumbByRemoteId(alarmId, alarm.alarmPicUrl)
+                }
                 continue
             }
             val rowId = dao.insertIgnore(
@@ -734,7 +737,8 @@ class MessageRepository(
                     remoteId = alarmId,
                     sendStatus = MessageEntity.SEND_STATUS_SUCCESS,
                     sendChannel = MessageEntity.CHANNEL_NONE,
-                    // 图片只进后端 alarm_events（全部抓拍页独享），Room 报警文字不落图字段
+                    // 报警消息同步落抓拍缩略图（SDK 返回的 alarmPicUrl），消息中心/会话页展示告警图片
+                    thumbUrl = alarm.alarmPicUrl ?: "",
                     messageCategory = MessageEntity.MESSAGE_CATEGORY_ALERT
                 )
             )

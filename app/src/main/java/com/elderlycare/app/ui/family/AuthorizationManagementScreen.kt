@@ -151,7 +151,7 @@ fun AuthorizationManagementScreen(onNavigateBack: () -> Unit) {
         AlertDialog(
             onDismissRequest = { pendingRevoke = null },
             title = { Text("解除授权") },
-            text = { Text("确定解除「${revokeTarget.orgName}」对 ${revokeTarget.elderlyName} 的授权吗？\n老人档案与设备数据不会被删除。") },
+            text = { Text("确定解除「${revokeTarget.orgName}」对 ${revokeTarget.elderlyName} 的授权吗？\n家人档案与设备数据不会被删除。") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -217,7 +217,7 @@ private fun PendingRequestCard(
                 StatusBadge(text = BindingStatus.PENDING.label, color = StatusYellow)
             }
             Spacer(modifier = Modifier.height(10.dp))
-            Text("申请绑定老人：${request.elderlyName}", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Text("申请绑定家人：${request.elderlyName}", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
             if (request.message.isNotBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text("申请说明：${request.message}", style = MaterialTheme.typography.bodySmall, color = TextHint)
@@ -278,7 +278,7 @@ private fun ActiveBindingCard(b: BindingUi, onRevoke: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text("机构类型：${b.orgTypeLabel} · ${b.userRoleLabel}", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-            Text("老人：${b.elderlyName}", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+            Text("家人：${b.elderlyName}", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
             Text("授权状态：生效 · 权限：查看", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
             Text("绑定时间：${formatTimestamp(b.createdAt)}", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
             Spacer(modifier = Modifier.height(8.dp))
@@ -301,7 +301,7 @@ private fun RevokedBindingCard(b: BindingUi) {
         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(b.orgName, style = MaterialTheme.typography.bodyMedium)
-                Text("老人：${b.elderlyName} · 绑定时间：${formatTimestamp(b.createdAt)}", style = MaterialTheme.typography.labelSmall, color = TextHint)
+                Text("家人：${b.elderlyName} · 绑定时间：${formatTimestamp(b.createdAt)}", style = MaterialTheme.typography.labelSmall, color = TextHint)
             }
             StatusBadge(text = BindingLifecycle.REVOKED.label, color = TextSecondary)
         }

@@ -59,6 +59,7 @@ fun StaffBindingManageScreen(
     role: UserRole,
     onNavigateBack: () -> Unit
 ) {
+    val elderWord = if (role == UserRole.HOSPITAL) "长者" else "服务对象"
     var selectedTab by remember { mutableStateOf(BindingTab.APPLY) }
     var currentStaff by remember { mutableStateOf<AppUser?>(null) }
 
@@ -94,7 +95,7 @@ fun StaffBindingManageScreen(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Column {
-                Text("ElderlyCare", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("银龄心语", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Text("绑定管理", color = TextGray, fontSize = 10.sp)
             }
         }
@@ -149,7 +150,7 @@ fun StaffBindingManageScreen(
             BindingTab.BOUND -> {
                 if (staffPhone.isNotBlank()) {
                     Box(modifier = Modifier.padding(horizontal = 16.dp)) {
-                        BoundUsersPanel(staffPhone)
+                        BoundUsersPanel(staffPhone, elderWord)
                     }
                 }
             }
@@ -163,6 +164,7 @@ fun StaffBindingManageScreen(
  */
 @Composable
 private fun ApplyTabContent(role: UserRole, onSubmitted: () -> Unit) {
+    val elderWord = if (role == UserRole.HOSPITAL) "长者" else "服务对象"
     val scope = rememberCoroutineScope()
     var currentStaff by remember { mutableStateOf<AppUser?>(null) }
     var elderlyList by remember { mutableStateOf<List<ElderlyProfile>>(emptyList()) }
@@ -203,7 +205,7 @@ private fun ApplyTabContent(role: UserRole, onSubmitted: () -> Unit) {
             Column {
                 Text("选择老人", color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 Spacer(modifier = Modifier.height(2.dp))
-                Text("可申请绑定的老人列表", color = TextGray, fontSize = 11.sp)
+                Text("可申请绑定的${elderWord}列表", color = TextGray, fontSize = 11.sp)
             }
         }
         if (elderlyList.isEmpty()) {
@@ -217,7 +219,7 @@ private fun ApplyTabContent(role: UserRole, onSubmitted: () -> Unit) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(Icons.Filled.Inbox, null, tint = TextHint, modifier = Modifier.size(32.dp))
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text("暂无可申请绑定的老人", color = TextHint, fontSize = 13.sp)
+                            Text("暂无可申请绑定的$elderWord", color = TextHint, fontSize = 13.sp)
                         }
                     }
                 }

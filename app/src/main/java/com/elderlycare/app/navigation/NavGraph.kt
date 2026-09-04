@@ -1,9 +1,17 @@
 package com.elderlycare.app.navigation
 
 import androidx.compose.runtime.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -62,9 +70,26 @@ fun AppNavGraph() {
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Welcome.route
+        startDestination = "boot"
     ) {
-        // ===== 启动欢迎页：点击「开启安心守护」再进入真实首屏（按登录态） =====
+        // ===== 启动分流（毫秒级）：已登录→对应端；未登录→全局欢迎页 =====
+        composable("boot") {
+            LaunchedEffect(Unit) {
+                val target = resolveStartDestination()
+                val dest = if (target == Screen.PortalSelection.route) Screen.Welcome.route else target
+                navController.navigate(dest) {
+                    popUpTo("boot") { inclusive = true }
+                }
+            }
+            Box(
+                modifier = Modifier.fillMaxSize().background(Color(0xFFF5F7FA)),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = Color(0xFF1A3A5C), strokeWidth = 2.5.dp)
+            }
+        }
+
+        // ===== 启动欢迎页：未登录用户点击「开启安心守护」进入门户 =====
         composable(Screen.Welcome.route) {
             WelcomeScreen(
                 onEnter = {
@@ -294,7 +319,10 @@ fun AppNavGraph() {
                         // 预览页「视频通话」：发起 ERTC 呼叫（闸门已校验设备，直接带 SN）
                         navController.navigate(Screen.VideoCall.createRoute(device.deviceSn)) { launchSingleTop = true }
                     },
-                    onNavigateToMessage = { navController.navigate(Screen.Message.route) }
+                    onNavigateToMessage = { navController.navigate(Screen.Message.route) },
+                    onNavigateToPlayback = { sn ->
+                        navController.navigate(Screen.Playback.createRoute(sn)) { launchSingleTop = true }
+                    }
                 )
             }
         }

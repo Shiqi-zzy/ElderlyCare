@@ -352,7 +352,7 @@ fun MyScreen(
         AlertDialog(
             onDismissRequest = { showAboutDialog = false },
             title = { Text("关于我们") },
-            text = { Text("萤石养老看护 · ElderlyCare\n面向家属的远程看护助手") },
+            text = { Text("银龄心语 · Silver Voices\n面向家属的远程看护助手") },
             confirmButton = { TextButton(onClick = { showAboutDialog = false }) { Text("知道了") } }
         )
     }

@@ -41,7 +41,7 @@ fun CommunityWizardScreen(onWizardComplete: () -> Unit, onExit: () -> Unit = {})
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("社区端 - 身份认证", fontWeight = FontWeight.SemiBold) },
+                title = { Text("社区管护 - 身份认证", fontWeight = FontWeight.SemiBold) },
                 navigationIcon = {
                     if (currentStep > 1) {
                         IconButton(onClick = { currentStep-- }) {
@@ -149,7 +149,7 @@ fun CommunityStepQual(certInfo: CertInfo, onCertChange: (CertInfo) -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             Text("资质材料上传（仅支持 JPG/PNG/PDF）", color = TextSecondary, style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.height(8.dp))
-            val docs = listOf("网格员工作证", "社区养老服务授权函", "在职证明")
+            val docs = listOf("网格员工作证", "社区照护服务授权函", "在职证明")
             docs.forEach { doc ->
                 Surface(shape = RoundedCornerShape(12.dp), color = SurfaceVariant, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
                     Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {

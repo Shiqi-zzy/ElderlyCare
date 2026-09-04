@@ -1,6 +1,10 @@
 package com.elderlycare.app.ui.ezviz
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Handler
@@ -21,11 +25,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Cast
 import androidx.compose.material.icons.filled.FiberManualRecord
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
@@ -33,12 +40,15 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VideoCall
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -49,9 +59,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.media3.ui.AspectRatioFrameLayout
 import com.elderlycare.app.R
 import com.elderlycare.app.data.ezviz.NetworkResult
 import com.elderlycare.app.data.ezviz.ServiceLocator
@@ -99,6 +111,7 @@ fun LivePreviewScreen(
     onNavigateToFm: (String) -> Unit = {},
     onNavigateToVideoCall: () -> Unit = {},
     onNavigateToMessage: () -> Unit = {},
+    onNavigateToPlayback: (String) -> Unit = {},
     viewModel: LivePreviewViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -107,6 +120,25 @@ fun LivePreviewScreen(
     val scope = rememberCoroutineScope()
 
     var controlsVisible by remember { mutableStateOf(true) }
+
+    // 画面右下角实时时间戳（参考萤石官方直播页水印，每秒刷新）
+    var nowStamp by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        while (true) {
+            val fmt = java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.getDefault())
+            nowStamp = fmt.format(java.util.Date())
+            delay(1000)
+        }
+    }
+
+    // 全屏模式（横屏放大）：进入隐藏顶栏/底部面板，视频铺满；退出恢复竖屏
+    val activity = LocalContext.current.findActivity()
+    var isFullscreen by remember { mutableStateOf(false) }
+    LaunchedEffect(isFullscreen) {
+        activity?.requestedOrientation =
+            if (isFullscreen) ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            else ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+    }
 
     // 预览是否已连接：取流成功且未在加载/出错；H5 路径取流即视为连接（无原生回调）
     val previewReady = uiState.streamUrl != null && !uiState.isLoading && uiState.error == null &&
@@ -309,34 +341,36 @@ fun LivePreviewScreen(
 
     Scaffold(
         topBar = {
-            if (controlsVisible) {
+            if (controlsVisible && !isFullscreen) {
                 TopAppBar(
                     title = {
                         Column {
                             Text(
                                 deviceInfo?.deviceName?.takeIf { it.isNotBlank() } ?: deviceSerial,
                                 fontWeight = FontWeight.SemiBold,
-                                color = Color.White
+                                color = TextPrimary
                             )
                             Text(
                                 deviceSerial,
                                 style = MaterialTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.6f)
+                                color = TextSecondary
                             )
                         }
                     },
                     navigationIcon = {
                         IconButton(onClick = onBackClick) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = Color.White)
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回", tint = TextPrimary)
                         }
                     },
                     actions = {
                         // 齿轮：设备信息对话框（名称/序列号/在线状态）
                         IconButton(onClick = { showDeviceDialog = true }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "设备信息", tint = Color.White)
+                            Icon(Icons.Filled.Settings, contentDescription = "设备信息", tint = TextPrimary)
                         }
                     },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = PageDarkBg)
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = Color.White.copy(alpha = 0.75f)
+                    )
                 )
             }
         }
@@ -424,37 +458,112 @@ fun LivePreviewScreen(
                 }
 
                 uiState.streamUrl != null -> {
-                    if (uiState.useWebView) {
-                        // ezopen 加密流：萤石 JSSDK 网页播放器（与回放页共用）
-                        EzvizWebPlayer(
-                            url = uiState.streamUrl!!,
-                            modifier = Modifier.fillMaxSize(),
-                            onConsoleMessage = { msg ->
-                                // H5 播放器报错视为预览断开（录制中自动停止）
-                                if (msg.contains("播放器错误")) viewModel.notifyPreviewDisconnected()
+                    if (isFullscreen) {
+                        // ===== 全屏：视频铺满全屏（横屏），左上角退出按钮 =====
+                        Box(Modifier.fillMaxSize().zIndex(2f).background(Color.Black)) {
+                            if (uiState.useWebView) {
+                                EzvizWebPlayer(
+                                    url = uiState.streamUrl!!,
+                                    modifier = Modifier.fillMaxSize(),
+                                    onConsoleMessage = { msg ->
+                                        if (msg.contains("播放器错误")) viewModel.notifyPreviewDisconnected()
+                                    }
+                                )
+                            } else {
+                                EzvizPlayerView(
+                                    player = player,
+                                    modifier = Modifier.fillMaxSize(),
+                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                )
+                                if (uiState.playerState == PlayerState.Buffering) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.align(Alignment.Center),
+                                        color = Color.White
+                                    )
+                                }
                             }
-                        )
+                            // 退出全屏（白底+文字，醒目）
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color.White.copy(alpha = 0.92f),
+                                shadowElevation = 4.dp,
+                                modifier = Modifier
+                                    .align(Alignment.TopStart)
+                                    .padding(12.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable { isFullscreen = false }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Filled.FullscreenExit, null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("退出全屏", style = MaterialTheme.typography.labelMedium, color = Color.Black, fontWeight = FontWeight.Medium)
+                                }
+                            }
+                        }
                     } else {
-                        EzvizPlayerView(
-                            player = player,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        if (uiState.playerState == PlayerState.Buffering) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.align(Alignment.Center),
-                                color = Primary
-                            )
+                        // ===== 竖屏：视频铺满全屏（ZOOM 裁切边缘，参考萤石官方直播页），控制浮层叠加其上 =====
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .zIndex(1f)
+                                .background(Color.Black)
+                        ) {
+                            if (uiState.useWebView) {
+                                EzvizWebPlayer(
+                                    url = uiState.streamUrl!!,
+                                    modifier = Modifier.fillMaxSize(),
+                                    onConsoleMessage = { msg ->
+                                        if (msg.contains("播放器错误")) viewModel.notifyPreviewDisconnected()
+                                    }
+                                )
+                            } else {
+                                EzvizPlayerView(
+                                    player = player,
+                                    modifier = Modifier.fillMaxSize(),
+                                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                )
+                                if (uiState.playerState == PlayerState.Buffering) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.align(Alignment.Center),
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                            // 进入全屏（白底+文字，醒目；避开顶部半透明栏）
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = Color.White.copy(alpha = 0.92f),
+                                shadowElevation = 4.dp,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(top = 68.dp, end = 12.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .clickable { isFullscreen = true }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Filled.Fullscreen, null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(4.dp))
+                                    Text("全屏", style = MaterialTheme.typography.labelMedium, color = Color.Black, fontWeight = FontWeight.Medium)
+                                }
+                            }
                         }
                     }
                 }
             }
 
             // 播放画面点击：切换显示/隐藏顶部操作栏与叠加控件
-            // （覆盖在视频层上、所有控件之下；控件自身消费事件，不会穿透触发切换）
-            if (uiState.streamUrl != null && uiState.error == null) {
+            // （置于视频层（zIndex 1）之下：视频层不消费触摸，点击穿透到本层；浮层控件消费事件，不会触发切换）
+            if (uiState.streamUrl != null && uiState.error == null && !isFullscreen) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
+                        .zIndex(0f)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -462,16 +571,32 @@ fun LivePreviewScreen(
                 )
             }
 
-            // 左上角「直播中 | 128KB/s」小字（静态文案，非交互不挡点击）
-            if (previewReady) {
+            // 左上角「直播中 | 128KB/s」小字（静态文案，浅色底深色字，非交互不挡点击）
+            if (previewReady && !isFullscreen) {
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = Color.Black.copy(alpha = 0.4f),
-                    modifier = Modifier.align(Alignment.TopStart).padding(12.dp)
+                    color = Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier.align(Alignment.TopStart).padding(top = 68.dp, start = 12.dp).zIndex(2f)
                 ) {
                     Text(
                         "直播中 | 128KB/s",
-                        color = Color.White.copy(alpha = 0.9f),
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            // 画面右下角实时时间戳水印（参考萤石官方直播页；zIndex 高于底部浮层，始终可见）
+            if (previewReady && !isFullscreen && nowStamp.isNotBlank()) {
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp).zIndex(4f)
+                ) {
+                    Text(
+                        nowStamp,
+                        color = TextPrimary,
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
@@ -483,9 +608,14 @@ fun LivePreviewScreen(
             // 云台控制已移至底部白色面板（白色圆盘风格）
 
             // 底部：视频控制栏 + 白色面板（功能行线条图标 + 云台控制圆盘）
-            if (uiState.streamUrl != null && uiState.error == null) {
-                Column(modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()) {
-                    // 视频底部控制栏（暂停/音量/投屏，线条图标，渐变背景）
+            if (uiState.streamUrl != null && uiState.error == null && !isFullscreen) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .zIndex(3f)
+                ) {
+                    // 视频底部控制栏（暂停/音量/全屏/投屏，浅色渐变背景）
                     if (controlsVisible && previewReady) {
                         Row(
                             modifier = Modifier
@@ -494,7 +624,7 @@ fun LivePreviewScreen(
                                     Brush.verticalGradient(
                                         listOf(
                                             Color.Transparent,
-                                            Color.Black.copy(alpha = 0.5f)
+                                            Color.White.copy(alpha = 0.55f)
                                         )
                                     )
                                 )
@@ -512,32 +642,75 @@ fun LivePreviewScreen(
                             }) {
                                 Icon(
                                     if (uiState.playerState == PlayerState.Paused) Icons.Filled.PlayArrow else Icons.Filled.Pause,
-                                    null, tint = Color.White, modifier = Modifier.size(26.dp)
+                                    null, tint = TextPrimary, modifier = Modifier.size(26.dp)
                                 )
                             }
                             IconButton(onClick = { viewModel.toggleMute() }) {
                                 Icon(
                                     if (uiState.isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                                    null, tint = Color.White, modifier = Modifier.size(26.dp)
+                                    null, tint = TextPrimary, modifier = Modifier.size(26.dp)
                                 )
                             }
                             Spacer(Modifier.weight(1f))
+                            IconButton(onClick = { isFullscreen = true }) {
+                                Icon(Icons.Filled.Fullscreen, null, tint = TextPrimary, modifier = Modifier.size(22.dp))
+                            }
                             IconButton(onClick = { toast("投屏功能即将上线") }) {
-                                Icon(Icons.Filled.Cast, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                                Icon(Icons.Filled.Cast, null, tint = TextPrimary, modifier = Modifier.size(22.dp))
                             }
                         }
                     }
 
-                    // 白色圆角面板
+                    // 浅色半透明圆角面板（参考萤石浅色浮层，浮于视频之上）
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(
-                                Color.White,
+                                Color.White.copy(alpha = 0.92f),
                                 RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
                             )
                             .padding(vertical = 16.dp)
                     ) {
+                        // 录像回放入口（方案B：跳转录像片段列表页，参考萤石"录像"tab）
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onNavigateToPlayback(deviceSerial) }
+                                .padding(horizontal = 20.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Filled.VideoLibrary,
+                                contentDescription = null,
+                                tint = Primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "录像回放",
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Medium,
+                                fontSize = 15.sp
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                "查看录像片段",
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                            Icon(
+                                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                contentDescription = null,
+                                tint = TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        HorizontalDivider(
+                            color = DividerColor.copy(alpha = 0.5f),
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+
                         // 功能行：对讲 / 视频通话 / 按住说话 / 录制 / 截图（线条图标风格）
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -644,6 +817,13 @@ fun LivePreviewScreen(
             confirmButton = { TextButton(onClick = { showDeviceDialog = false }) { Text("知道了") } }
         )
     }
+}
+
+/** 从 Compose LocalContext 向上查找 Activity（用于横屏方向切换） */
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
 
 /** 存储权限申请后的待执行动作（仅 API≤28 需要） */

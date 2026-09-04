@@ -102,7 +102,7 @@ fun HospitalQualificationScreen() {
             }
             Spacer(modifier = Modifier.width(8.dp))
             Column {
-                Text("ElderlyCare", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("银龄心语", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("工作资格", color = TextGray, fontSize = 11.sp)
             }
             Spacer(modifier = Modifier.weight(1f))

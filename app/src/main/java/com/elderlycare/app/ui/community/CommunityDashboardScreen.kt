@@ -99,7 +99,7 @@ fun CommunityDashboardScreen(
     val completionRate = if (total > 0) (withDevice * 100 / total) else 0
 
     fun categoryList(title: String): List<AccessibleElderlyUi> = when (title) {
-        "服务老人" -> elderly
+        "服务对象" -> elderly
         "待处理" -> elderly.filter { it.profile.healthCategory() != HealthCategory.NORMAL }
         "有设备" -> elderly.filter { it.profile.hasDevice() }
         "正常" -> elderly.filter { it.profile.healthCategory() == HealthCategory.NORMAL }
@@ -132,7 +132,7 @@ fun CommunityDashboardScreen(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Column {
-                Text("ElderlyCare", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("银龄心语", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("社区端 · 工作台", color = TextGray, fontSize = 11.sp)
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -167,7 +167,7 @@ fun CommunityDashboardScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "幸福社区养老服务站",
+                        "幸福社区照护服务站",
                         color = Color.White.copy(alpha = 0.85f),
                         fontSize = 13.sp
                     )
@@ -218,8 +218,8 @@ fun CommunityDashboardScreen(
                 icon = Icons.Filled.People,
                 iconBg = MetricBlue,
                 value = "$total",
-                label = "服务老人",
-                onClick = { detailTitle = "服务老人" },
+                label = "服务对象",
+                onClick = { detailTitle = "服务对象" },
                 modifier = Modifier.weight(1f)
             )
             MetricCard(
@@ -357,7 +357,7 @@ fun CommunityDashboardScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("健康知识库", color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     Spacer(modifier = Modifier.height(2.dp))
-                    Text("科学养老 · 健康生活", color = TextGray, fontSize = 12.sp)
+                    Text("科学照护 · 健康生活", color = TextGray, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(10.dp))
                     Button(
                         onClick = { /* 健康知识库入口，暂留 */ },

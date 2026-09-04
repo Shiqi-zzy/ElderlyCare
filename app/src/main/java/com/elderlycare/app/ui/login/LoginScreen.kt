@@ -40,14 +40,14 @@ fun LoginScreen(
             }
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "萤石养老看护",
+                text = "银龄心语",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = OnPrimary
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "家属端 · 远程看护助手",
+                text = "居家用户 · 远程看护助手",
                 fontSize = 14.sp,
                 color = OnPrimary.copy(alpha = 0.8f)
             )

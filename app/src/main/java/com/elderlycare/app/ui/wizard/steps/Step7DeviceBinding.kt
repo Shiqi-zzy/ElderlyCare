@@ -11,7 +11,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -24,12 +23,15 @@ import com.elderlycare.app.ui.components.StatusBadge
 import com.elderlycare.app.ui.theme.*
 import kotlinx.coroutines.launch
 
+/** 后端局域网同步状态（萤石云绑定成功 ≠ 后端同步成功，两状态分开展示）。 */
+private enum class SyncState { IDLE, SYNCING, SUCCESS, FAILED }
+
 /**
  * 设备绑定（档案录入第 6 步）。
  *
  * 绑定成功（SDK 校验通过）后必须调后端上报设备验证码（device_auth），
- * 上报成功才置 [onBackendSynced]（向导【完成】按钮据此放行）；失败 Toast
- * 「设备信息同步失败，请检查网络后重新绑定设备」阻断流程，已绑定卡内提供「重试同步」。
+ * 上报成功才置 [onBackendSynced]（向导【完成】按钮据此放行）；同步请求 8s 超时，
+ * 超时自动结束「同步中…」并展示失败文案，已绑定卡内提供「重试同步」。
  */
 @Composable
 fun Step7DeviceBinding(
@@ -39,20 +41,34 @@ fun Step7DeviceBinding(
     onBackendSynced: (Boolean) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
     var isBinding by remember { mutableStateOf(false) }
-    var isSyncing by remember { mutableStateOf(false) }
     var bindError by remember { mutableStateOf<String?>(null) }
+    var syncState by remember { mutableStateOf(SyncState.IDLE) }
+    var syncError by remember { mutableStateOf<String?>(null) }
 
-    // 已绑定但未同步：静默补传（存量已绑定设备 / 失败后重试兜底，幂等 upsert）
-    LaunchedEffect(profile.deviceBound, backendSynced) {
+    // 后端局域网同步（8s 超时由仓库层保证，超时自动结束「同步中…」并展示失败文案）
+    suspend fun doSync(sn: String, code: String) {
+        syncState = SyncState.SYNCING
+        syncError = null
+        ServiceLocator.captureRepository.uploadDeviceAuth(sn, code)
+            .onSuccess {
+                syncState = SyncState.SUCCESS
+                onBackendSynced(true)
+            }
+            .onFailure { e ->
+                syncState = SyncState.FAILED
+                syncError = e.message
+                onBackendSynced(false)
+            }
+    }
+
+    // 已绑定但未同步：进入本页时静默补传一次（存量已绑定设备兜底，幂等 upsert；
+    // 仅首次组合触发，避免与「绑定成功」分支的 doSync 重复请求）
+    LaunchedEffect(Unit) {
         if (profile.deviceBound && !backendSynced &&
             profile.deviceSn.isNotBlank() && profile.deviceValidateCode.isNotBlank()
         ) {
-            ServiceLocator.captureRepository
-                .uploadDeviceAuth(profile.deviceSn, profile.deviceValidateCode)
-                .onSuccess { onBackendSynced(true) }
-                .onFailure { onBackendSynced(false) }
+            doSync(profile.deviceSn, profile.deviceValidateCode)
         }
     }
 
@@ -71,7 +87,7 @@ fun Step7DeviceBinding(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (profile.deviceBound) {
-                    // 已绑定状态
+                    // 已绑定状态：萤石云绑定成功 + 后端局域网同步，两状态分开展示
                     Column {
                         Surface(
                             shape = RoundedCornerShape(12.dp),
@@ -104,6 +120,8 @@ fun Step7DeviceBinding(
                                     onClick = {
                                         ServiceLocator.deviceBindingStore.clear()
                                         onBackendSynced(false)
+                                        syncState = SyncState.IDLE
+                                        syncError = null
                                         onUpdate(
                                             profile.copy(
                                                 deviceSn = "",
@@ -119,38 +137,72 @@ fun Step7DeviceBinding(
                                 }
                             }
                         }
-                        // 验证码尚未同步到后端（device_auth）→ 阻断向导，提供重试（只重传不重调 addDevice）
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        // 双状态明细：萤石云绑定 ≠ 后端局域网同步
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = SurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        "萤石云绑定",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = TextSecondary
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    StatusBadge(text = "已绑定", color = StatusGreen)
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        "后端同步",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = TextSecondary
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    when (syncState) {
+                                        SyncState.SUCCESS -> StatusBadge(text = "已同步", color = StatusGreen)
+                                        SyncState.SYNCING -> StatusBadge(text = "同步中…", color = StatusYellow)
+                                        else -> StatusBadge(text = "未同步", color = Error)
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "注意：手机热点可能存在网络隔离，优先使用普通路由器WiFi完成档案同步",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextHint
+                        )
+
+                        // 验证码尚未同步到后端（device_auth）→ 阻断向导，提供失败文案 + 重试（只重传不重调 addDevice）
                         if (!backendSynced) {
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "设备信息未同步到后端，同步成功后才能完成档案录入",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Error
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            if (syncState == SyncState.FAILED) {
+                                Text(
+                                    text = if (syncError?.contains("超时") == true) {
+                                        "同步失败，手机热点可能开启设备隔离，建议更换普通路由器WiFi重试"
+                                    } else {
+                                        "设备同步失败，请确认手机与RK3设备连接同一局域网WiFi后重试"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Error
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
                             OutlinedButton(
                                 onClick = {
-                                    scope.launch {
-                                        isSyncing = true
-                                        ServiceLocator.captureRepository
-                                            .uploadDeviceAuth(profile.deviceSn, profile.deviceValidateCode)
-                                            .onSuccess { onBackendSynced(true) }
-                                            .onFailure {
-                                                onBackendSynced(false)
-                                                Toast.makeText(
-                                                    context,
-                                                    "设备信息同步失败，请检查网络后重新绑定设备",
-                                                    Toast.LENGTH_LONG
-                                                ).show()
-                                            }
-                                        isSyncing = false
-                                    }
+                                    scope.launch { doSync(profile.deviceSn, profile.deviceValidateCode) }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(20.dp),
-                                enabled = !isSyncing
+                                enabled = syncState != SyncState.SYNCING
                             ) {
-                                if (isSyncing) {
+                                if (syncState == SyncState.SYNCING) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(16.dp),
                                         strokeWidth = 2.dp
@@ -284,18 +336,9 @@ fun Step7DeviceBinding(
                                                         deviceBound = true
                                                     )
                                                 )
-                                                // SDK 校验成功 → 上报后端 device_auth；成功才放行向导【完成】按钮
-                                                ServiceLocator.captureRepository
-                                                    .uploadDeviceAuth(sn, code)
-                                                    .onSuccess { onBackendSynced(true) }
-                                                    .onFailure {
-                                                        onBackendSynced(false)
-                                                        Toast.makeText(
-                                                            context,
-                                                            "设备信息同步失败，请检查网络后重新绑定设备",
-                                                            Toast.LENGTH_LONG
-                                                        ).show()
-                                                    }
+                                                isBinding = false
+                                                // SDK 校验成功 → 上报后端 device_auth（8s 超时）；成功才放行向导【完成】按钮
+                                                doSync(sn, code)
                                             }
                                             is NetworkResult.Error -> {
                                                 bindError = result.message

@@ -38,7 +38,7 @@ private val TextGray = Color(0xFF6B7C74)
 private val TextHint = Color(0xFF9AA8A2)
 
 /**
- * 社区端「随访计划」页面：选择老人添加随访 + 随访列表 + 完成标记。
+ * 社区端「随访计划」页面：选择服务对象添加随访 + 随访列表 + 完成标记。
  * 完成随访后自动写入服务记录，并生成/完成待办事项。
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -212,13 +212,13 @@ private fun AddFollowUpDialog(
         title = { Text("添加随访计划", fontWeight = FontWeight.SemiBold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // 选择老人
+                // 选择服务对象
                 OutlinedButton(
                     onClick = { showElderlyPicker = true },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text(elderly?.profile?.name ?: "选择老人", color = if (elderly == null) TextHint else TextDark)
+                    Text(elderly?.profile?.name ?: "选择服务对象", color = if (elderly == null) TextHint else TextDark)
                 }
 
                 // 随访类型
@@ -262,7 +262,7 @@ private fun AddFollowUpDialog(
     if (showElderlyPicker) {
         AlertDialog(
             onDismissRequest = { showElderlyPicker = false },
-            title = { Text("选择老人") },
+            title = { Text("选择服务对象") },
             text = {
                 LazyColumn {
                     items(elderlyList) { e ->

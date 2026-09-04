@@ -95,8 +95,8 @@ fun HospitalEmergencyPanelScreen(
             }
             Spacer(modifier = Modifier.width(8.dp))
             Column {
-                Text("ElderlyCare", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("医院端 · 急救大屏", color = TextGray, fontSize = 11.sp)
+                Text("银龄心语", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("医护管理 · 急救大屏", color = TextGray, fontSize = 11.sp)
             }
             Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = onLogout) {

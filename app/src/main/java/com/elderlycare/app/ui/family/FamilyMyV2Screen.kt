@@ -70,6 +70,9 @@ fun FamilyMyV2Screen(
 
     var user by remember { mutableStateOf<FamilyUser?>(null) }
     var profiles by remember { mutableStateOf<List<ElderlyProfile>>(emptyList()) }
+    // 使用角色：self=使用人本人，family=家属及居家照料人
+    val familyRole = remember { ServiceLocator.settingsStore.getFamilyUserRole() }
+    val isSelf = familyRole == "self"
     LaunchedEffect(Unit) {
         user = ServiceLocator.userStore.getCurrentUser()
         val uid = ServiceLocator.userStore.getCurrentUserId() ?: ""
@@ -89,6 +92,9 @@ fun FamilyMyV2Screen(
 
     var showSimDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    // RK3 服务器地址（局域网报告/建议接口 baseUrl；空串=未设置，报告页走「请前往设置」提示）
+    var rk3ServerInput by remember { mutableStateOf(ServiceLocator.settingsStore.getRk3ServerAddress()) }
+    var showRk3ServerDialog by remember { mutableStateOf(false) }
 
     fun toast(m: String) = Toast.makeText(context, m, Toast.LENGTH_SHORT).show()
 
@@ -128,12 +134,12 @@ fun FamilyMyV2Screen(
                     Spacer(Modifier.height(4.dp))
                     val elder = profiles.firstOrNull()
                     Text(
-                        elder?.let { "关爱老人：${it.name} · ${it.buildingNo.ifBlank { "未填楼栋" }}栋${it.roomNo}" }
-                            ?: "尚未建立老人档案",
+                        elder?.let { "${if (isSelf) "本人" else "关爱家人"}：${it.name} · ${it.buildingNo.ifBlank { "未填楼栋" }}栋${it.roomNo}" }
+                            ?: "尚未建立${if (isSelf) "本人" else "家人"}档案",
                         color = Color.White.copy(alpha = 0.92f), fontSize = 13.sp
                     )
                     Spacer(Modifier.height(2.dp))
-                    Text("家属端", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                    Text(if (isSelf) "使用人本人" else "家属及居家照料人", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
                 }
             }
         }
@@ -166,7 +172,7 @@ fun FamilyMyV2Screen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .clickable {
-                    if (profiles.isEmpty()) toast("请先为老人建立档案并填写居住楼栋")
+                    if (profiles.isEmpty()) toast("请先为家人建立档案并填写居住楼栋")
                     else showSimDialog = true
                 },
             shape = RoundedCornerShape(14.dp),
@@ -202,10 +208,18 @@ fun FamilyMyV2Screen(
             Column(Modifier.padding(16.dp)) {
                 Text("我的服务", color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Spacer(Modifier.height(14.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    FamGrid(Icons.Filled.Badge, "编辑档案", BlueMain, onNavigateToProfileEdit)
-                    FamGrid(Icons.Filled.Videocam, "我的设备", BlueMain, onNavigateToDevice)
-                    FamGrid(Icons.Filled.VerifiedUser, "授权管理", BlueMain, onNavigateToAuthorizationMgmt)
+                if (isSelf) {
+                    // 使用人本人：不显示授权管理
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        FamGrid(Icons.Filled.Badge, "编辑档案", BlueMain, onNavigateToProfileEdit)
+                        FamGrid(Icons.Filled.Videocam, "我的设备", BlueMain, onNavigateToDevice)
+                    }
+                } else {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        FamGrid(Icons.Filled.Badge, "编辑档案", BlueMain, onNavigateToProfileEdit)
+                        FamGrid(Icons.Filled.Videocam, "我的设备", BlueMain, onNavigateToDevice)
+                        FamGrid(Icons.Filled.VerifiedUser, "授权管理", BlueMain, onNavigateToAuthorizationMgmt)
+                    }
                 }
                 Spacer(Modifier.height(16.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -226,8 +240,12 @@ fun FamilyMyV2Screen(
             elevation = CardDefaults.cardElevation(1.dp)
         ) {
             Column {
+                FamRow(Icons.Filled.Dns, "RK3服务器地址", isLast = false) {
+                    rk3ServerInput = ServiceLocator.settingsStore.getRk3ServerAddress()
+                    showRk3ServerDialog = true
+                }
                 FamRow(Icons.Filled.HelpOutline, "帮助中心", isLast = false) { toast("帮助中心") }
-                FamRow(Icons.Filled.Info, "关于我们", isLast = true) { toast("萤视 Pro 智慧养老 · 四端协同演示") }
+                FamRow(Icons.Filled.Info, "关于我们", isLast = true) { toast("银龄心语 · Silver Voices") }
             }
         }
 
@@ -241,6 +259,41 @@ fun FamilyMyV2Screen(
         Spacer(Modifier.height(24.dp))
     }
 
+    // ===== RK3 服务器地址输入 =====
+    if (showRk3ServerDialog) {
+        AlertDialog(
+            onDismissRequest = { showRk3ServerDialog = false },
+            title = { Text("RK3服务器地址") },
+            text = {
+                Column {
+                    Text(
+                        "填写 RK3 局域网 HTTP 服务地址（报告/建议数据源），RK3 无公网 IP，需手机与设备连接同一 WiFi 才能访问。",
+                        fontSize = 13.sp,
+                        color = TextGray
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = rk3ServerInput,
+                        onValueChange = { rk3ServerInput = it },
+                        placeholder = { Text("http://192.168.x.x:8080", fontSize = 13.sp) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    ServiceLocator.settingsStore.setRk3ServerAddress(rk3ServerInput)
+                    showRk3ServerDialog = false
+                    toast("RK3服务器地址已保存")
+                }) { Text("保存") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRk3ServerDialog = false }) { Text("取消") }
+            }
+        )
+    }
+
     // ===== 模拟跌倒：选择老人 + 确认 =====
     if (showSimDialog) {
         var picked by remember { mutableStateOf(profiles.firstOrNull()) }
@@ -249,7 +302,7 @@ fun FamilyMyV2Screen(
             title = { Text("模拟 RK3 跌倒告警") },
             text = {
                 Column {
-                    Text("选择要触发告警的老人：", color = TextGray, fontSize = 13.sp)
+                    Text("选择要触发告警的家人：", color = TextGray, fontSize = 13.sp)
                     Spacer(Modifier.height(8.dp))
                     profiles.forEach { p ->
                         Row(

@@ -190,7 +190,7 @@ fun StaffMyScreen(
                     .fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                MetricItem(Icons.Filled.People, MetricBlue, "$serviceElderlyCount", "服务老人", Modifier.weight(1f))
+                MetricItem(Icons.Filled.People, MetricBlue, "$serviceElderlyCount", if (currentStaff?.role?.name == "HOSPITAL") "服务长者" else "服务对象", Modifier.weight(1f))
                 MetricItem(Icons.Filled.Assignment, MetricOrange, "$serviceCount", "服务次数", Modifier.weight(1f))
                 MetricItem(Icons.Filled.Verified, MetricGreen, "98%", "好评率", Modifier.weight(1f))
                 MetricItem(Icons.Filled.Star, MetricPurple, "4.9", "服务评分", Modifier.weight(1f))

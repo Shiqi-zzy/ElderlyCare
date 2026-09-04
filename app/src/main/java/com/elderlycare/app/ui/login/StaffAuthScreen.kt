@@ -65,7 +65,7 @@ internal fun StaffAuthScreen(
     LaunchedEffect(role) {
         val defaultOrg = OrganizationEntity(
             id = if (role == UserRole.COMMUNITY) SeedData.COMMUNITY_ORG_ID else SeedData.HOSPITAL_ORG_ID,
-            name = if (role == UserRole.COMMUNITY) "幸福社区养老驿站" else "新华社区医院",
+            name = if (role == UserRole.COMMUNITY) "幸福社区照护驿站" else "新华社区医院",
             type = role.name,
             createdAt = 0L
         )
@@ -155,7 +155,7 @@ internal fun StaffAuthScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 24.dp)
         ) {
-            Text("欢迎使用萤石养老看护", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("欢迎使用银龄心语", fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = if (isRegister) "首次使用请注册${endName}账号" else "登录后自动恢复您的授权看护数据",

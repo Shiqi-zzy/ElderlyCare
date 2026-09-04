@@ -46,6 +46,7 @@ private val TextHint = Color(0xFF9AA8A2)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StaffBindingApplyScreen(role: UserRole, onNavigateBack: () -> Unit) {
+    val elderWord = if (role == UserRole.HOSPITAL) "长者" else "服务对象"
     val scope = rememberCoroutineScope()
     var currentStaff by remember { mutableStateOf<AppUser?>(null) }
     var elderlyList by remember { mutableStateOf<List<ElderlyProfile>>(emptyList()) }
@@ -90,7 +91,7 @@ fun StaffBindingApplyScreen(role: UserRole, onNavigateBack: () -> Unit) {
             }
             Spacer(modifier = Modifier.width(8.dp))
             Column {
-                Text("ElderlyCare", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text("银龄心语", color = TextDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Text("发起绑定申请", color = TextGray, fontSize = 10.sp)
             }
         }
@@ -113,7 +114,7 @@ fun StaffBindingApplyScreen(role: UserRole, onNavigateBack: () -> Unit) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("发起绑定申请", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text("选择老人并提交申请，审核通过后即可访问", color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp)
+                    Text("选择${elderWord}并提交申请，审核通过后即可访问", color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp)
                 }
                 Box(
                     modifier = Modifier
@@ -141,11 +142,11 @@ fun StaffBindingApplyScreen(role: UserRole, onNavigateBack: () -> Unit) {
             ) {
                 // ===== 选择老人 =====
                 item {
-                    SectionTitle("选择老人", "可申请绑定的老人列表")
+                    SectionTitle("选择$elderWord", "可申请绑定的${elderWord}列表")
                 }
                 if (elderlyList.isEmpty()) {
                     item {
-                        EmptyCard("暂无可申请绑定的老人")
+                        EmptyCard("暂无可申请绑定的${elderWord}")
                     }
                 }
                 items(elderlyList, key = { it.userId }) { profile ->
@@ -209,7 +210,7 @@ fun StaffBindingApplyScreen(role: UserRole, onNavigateBack: () -> Unit) {
                 if (p != null) {
                     item { Spacer(modifier = Modifier.height(4.dp)) }
                     item {
-                        SectionTitle("老人信息", "已选择老人的详细资料")
+                        SectionTitle("${elderWord}信息", "已选择${elderWord}的详细资料")
                     }
                     item {
                         InfoCard {

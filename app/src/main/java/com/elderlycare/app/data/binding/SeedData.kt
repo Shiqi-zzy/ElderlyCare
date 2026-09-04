@@ -16,7 +16,7 @@ import com.elderlycare.app.data.model.UserRole
 /**
  * 预置演示数据（幂等，可重复启动）。
  *
- * 机构：幸福社区养老驿站（社区）、新华社区医院（医院）。
+ * 机构：幸福社区照护驿站（社区）、新华社区医院（医院）。
  *
  * 工作人员（密码统一 [DEMO_PASSWORD]）：
  * - 社区网格员：李网格(1-3栋) 13810000001 / 王网格(4-6栋) 13810000002 / 赵网格(7-8栋) 13810000003
@@ -57,13 +57,13 @@ class SeedData(
             listOf(
                 OrganizationEntity(
                     id = COMMUNITY_ORG_ID,
-                    name = "幸福社区养老驿站",
+                    name = "幸福社区照护驿站",
                     type = OrganizationType.COMMUNITY.name,
                     contactPerson = "李网格",
                     contactPhone = "13810000001",
                     address = "幸福社区服务中心1号楼",
                     serviceArea = "1-8栋",
-                    intro = "提供社区居家养老巡访、应急联动服务",
+                    intro = "提供社区居家照护巡访、应急联动服务",
                     createdAt = now
                 ),
                 OrganizationEntity(
@@ -79,7 +79,7 @@ class SeedData(
                 ),
                 OrganizationEntity(
                     id = "org_community_02",
-                    name = "安康社区养老驿站",
+                    name = "安康社区照护驿站",
                     type = OrganizationType.COMMUNITY.name,
                     contactPerson = "社区前台",
                     contactPhone = "13810000004",
@@ -90,7 +90,7 @@ class SeedData(
                 ),
                 OrganizationEntity(
                     id = "org_community_03",
-                    name = "民乐社区养老服务站",
+                    name = "民乐社区照护服务站",
                     type = OrganizationType.COMMUNITY.name,
                     contactPerson = "社区前台",
                     contactPhone = "13810000005",
@@ -218,24 +218,13 @@ class SeedData(
     private suspend fun seedElderlyAndFamily(now: Long) {
         val store = profileStore ?: return
         val existed = store.getAllProfiles().map { it.userId }.toSet()
+        // 仅保留一个本地档案（王建军，家属 18107663723，设备 BK9267115）
         val elders = listOf(
             ElderlyProfile(
-                userId = "13800001111", name = "张德福", gender = Gender.MALE, age = "78",
-                phone = "13800001111", emergencyContactName = "张小军", emergencyContactPhone = "13800001111",
+                userId = "18107663723", name = "王建军", gender = Gender.MALE, age = "72",
+                phone = "18107663723", emergencyContactName = "王小明", emergencyContactPhone = "18107663723",
                 communityId = COMMUNITY_ORG_ID, buildingNo = "1", unitNo = "1", roomNo = "201",
-                deviceSn = "RK3-DEMO-0001", deviceBound = true, privacyConsentGiven = true
-            ),
-            ElderlyProfile(
-                userId = "13800001112", name = "李秀兰", gender = Gender.FEMALE, age = "82",
-                phone = "13800001112", emergencyContactName = "李华", emergencyContactPhone = "13800001112",
-                communityId = COMMUNITY_ORG_ID, buildingNo = "4", unitNo = "2", roomNo = "102",
-                deviceSn = "RK3-DEMO-0002", deviceBound = true, privacyConsentGiven = true
-            ),
-            ElderlyProfile(
-                userId = "13800001113", name = "陈桂英", gender = Gender.FEMALE, age = "75",
-                phone = "13800001113", emergencyContactName = "陈强", emergencyContactPhone = "13800001113",
-                communityId = COMMUNITY_ORG_ID, buildingNo = "8", unitNo = "1", roomNo = "303",
-                deviceSn = "RK3-DEMO-0003", deviceBound = true, privacyConsentGiven = true
+                deviceSn = "BK9267115", deviceBound = true, privacyConsentGiven = true
             )
         )
         elders.forEach { elder ->

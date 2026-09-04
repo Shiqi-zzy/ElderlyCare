@@ -116,7 +116,7 @@ fun FamilyHomeScreen(
         containerColor = HomeBg,
         topBar = {
             TopAppBar(
-                title = { Text("萤石养老看护", fontWeight = FontWeight.SemiBold) },
+                title = { Text("银龄心语", fontWeight = FontWeight.SemiBold) },
                 actions = {
                     Box {
                         IconButton(onClick = onOpenMessagesTab) {
@@ -254,34 +254,9 @@ private fun BannerCard() {
             contentScale = ContentScale.Fit
         )
 
-        // 底部轮播指示点（3页，第1页高亮）
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            BannerDot(isActive = true)
-            BannerDot(isActive = false)
-            BannerDot(isActive = false)
-        }
     }
 }
 
-/** Banner 底部小圆点 */
-@Composable
-private fun BannerDot(isActive: Boolean) {
-    Box(
-        modifier = Modifier
-            .size(if (isActive) 7.dp else 5.dp)
-            .clip(CircleShape)
-            .background(
-                if (isActive) Color.White
-                else Color.White.copy(alpha = 0.5f)
-            )
-    )
-}
 
 /**
  * 我的设备卡片：设备名 + 在线点 + 右箭头 + 缩略预览图。

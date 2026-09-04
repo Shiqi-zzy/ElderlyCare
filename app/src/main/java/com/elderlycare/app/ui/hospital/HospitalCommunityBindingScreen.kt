@@ -73,7 +73,7 @@ fun HospitalCommunityBindingScreen(onNavigateBack: () -> Unit) {
         }
     ) { pad ->
         Column(Modifier.padding(pad).verticalScroll(rememberScrollState()).padding(16.dp)) {
-            Text("医院不再直接绑定老人，而是绑定社区；审批通过后自动获得该社区全部老人的脱敏视图。",
+            Text("医院不再直接绑定长者，而是绑定社区；审批通过后自动获得该社区全部长者的脱敏视图。",
                 color = Gray, fontSize = 12.sp)
             Spacer(Modifier.height(12.dp))
             if (communities.isEmpty()) Text("暂无社区机构", color = Gray)

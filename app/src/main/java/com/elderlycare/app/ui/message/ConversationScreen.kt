@@ -49,7 +49,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -95,6 +98,9 @@ fun ConversationScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = ServiceLocator.messageRepository
+
+    // 告警图片放大预览（点击消息图片置入 URL）
+    var previewImageUrl by remember { mutableStateOf<String?>(null) }
 
     // 授权链路当前设备（响应式；无设备则空列表）
     var boundDevice by remember { mutableStateOf<BindingRepository.AccessibleDevice?>(null) }
@@ -183,10 +189,31 @@ fun ConversationScreen(
                     items(messages, key = { "chat_${it.id}" }) { message ->
                         ChatBubble(
                             message = message,
-                            onOpenVideo = { onOpenVideo(message.id) }
+                            onOpenVideo = { onOpenVideo(message.id) },
+                            onOpenImage = { previewImageUrl = it }
                         )
                     }
                 }
+            }
+        }
+    }
+
+    // 告警图片放大预览弹窗（点击背景关闭）
+    previewImageUrl?.let { url ->
+        Dialog(onDismissRequest = { previewImageUrl = null }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.92f))
+                    .clickable { previewImageUrl = null },
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = url,
+                    contentDescription = "告警图片",
+                    modifier = Modifier.fillMaxWidth(),
+                    contentScale = ContentScale.Fit
+                )
             }
         }
     }
@@ -194,7 +221,11 @@ fun ConversationScreen(
 
 /** 单条聊天气泡：我方右对齐（主色底白字），对方左对齐（白底深字），附时间戳与类型标签 */
 @Composable
-private fun ChatBubble(message: MessageEntity, onOpenVideo: () -> Unit) {
+private fun ChatBubble(
+    message: MessageEntity,
+    onOpenVideo: () -> Unit,
+    onOpenImage: (String) -> Unit
+) {
     val isMine = message.msgType == MessageEntity.MSG_TYPE_TEXT ||
         message.msgType == MessageEntity.MSG_TYPE_RECORD
 
@@ -226,7 +257,7 @@ private fun ChatBubble(message: MessageEntity, onOpenVideo: () -> Unit) {
             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
             modifier = Modifier.widthIn(max = 300.dp)
         ) {
-            MessageContent(message = message, isMine = isMine, onOpenVideo = onOpenVideo)
+            MessageContent(message = message, isMine = isMine, onOpenVideo = onOpenVideo, onOpenImage = onOpenImage)
         }
     }
 }
@@ -260,7 +291,12 @@ private fun MessageTypeTag(msgType: Int) {
 
 /** 气泡内容：文字 / 录音时长 / 设备视频缩略图（点击播放）/ 报警文案 */
 @Composable
-private fun MessageContent(message: MessageEntity, isMine: Boolean, onOpenVideo: () -> Unit) {
+private fun MessageContent(
+    message: MessageEntity,
+    isMine: Boolean,
+    onOpenVideo: () -> Unit,
+    onOpenImage: (String) -> Unit
+) {
     val textColor = if (isMine) Color.White else TextPrimary
     when (message.msgType) {
         MessageEntity.MSG_TYPE_RECORD -> {
@@ -298,19 +334,41 @@ private fun MessageContent(message: MessageEntity, isMine: Boolean, onOpenVideo:
             }
         }
         else -> {
-            // 文字留言 / 报警 / 健康建议：文本内容
-            Text(
-                message.content.ifBlank {
-                    when (message.msgType) {
-                        MessageEntity.MSG_TYPE_ALERT -> "设备告警"
-                        MessageEntity.MSG_TYPE_ADVICE -> "健康建议"
-                        else -> "留言"
-                    }
-                },
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                style = MaterialTheme.typography.bodyMedium,
-                color = textColor
-            )
+            // 文字留言 / 报警 / 健康建议：文本内容；报警消息带图时显示缩略图（点击放大）
+            val alertPic = message.thumbUrl
+            if (message.msgType == MessageEntity.MSG_TYPE_ALERT && alertPic.isNotBlank()) {
+                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                    AsyncImage(
+                        model = alertPic,
+                        contentDescription = "告警图片",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { onOpenImage(alertPic) },
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        message.content.ifBlank { "设备告警" },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textColor
+                    )
+                }
+            } else {
+                Text(
+                    message.content.ifBlank {
+                        when (message.msgType) {
+                            MessageEntity.MSG_TYPE_ALERT -> "设备告警"
+                            MessageEntity.MSG_TYPE_ADVICE -> "健康建议"
+                            else -> "留言"
+                        }
+                    },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = textColor
+                )
+            }
         }
     }
 }

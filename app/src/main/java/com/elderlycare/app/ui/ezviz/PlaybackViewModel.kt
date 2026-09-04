@@ -10,9 +10,21 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+/** 录像片段 UI 模型（萤石风格：时间 + 时长） */
+data class RecordFileItem(
+    val startTime: Long,          // 毫秒
+    val endTime: Long,            // 毫秒
+    val timeLabel: String,        // HH:mm
+    val durationLabel: String,    // 0'43"
+    val localType: String         // ALARM / TIMING / IO
+)
 
 data class PlaybackUiState(
     val deviceSerial: String = "",
@@ -27,13 +39,20 @@ data class PlaybackUiState(
     val isPlaying: Boolean = false,
     val error: String? = null,
     val lastLoadedDate: String = "",
-    val lastLoadedCode: String = ""
+    val lastLoadedCode: String = "",
+    // ===== 录像片段列表（萤石风格录像页）=====
+    val recordFiles: List<RecordFileItem> = emptyList(),
+    val isListLoading: Boolean = false,
+    val listError: String? = null
 )
 
 class PlaybackViewModel : ViewModel() {
 
     private val TAG = "PlaybackViewModel"
     private val repo = ServiceLocator.repository
+    private val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    private val timeSdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+    private val fullSdf = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
 
     private val _uiState = MutableStateFlow(PlaybackUiState())
     val uiState: StateFlow<PlaybackUiState> = _uiState.asStateFlow()
@@ -54,11 +73,11 @@ class PlaybackViewModel : ViewModel() {
                 stopTime = window.third
             )
         }
+        loadRecordFiles()
     }
 
     /** 解析告警时间，返回 (回放日期, 开始时间, 结束时间)；格式非法时返回 null。 */
     private fun alarmWindow(alarmTime: String): Triple<String, String, String>? = try {
-        val fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val t = LocalDateTime.parse(alarmTime.trim(), fmt)
         Triple(
             t.toLocalDate().toString(),
@@ -74,9 +93,12 @@ class PlaybackViewModel : ViewModel() {
             it.copy(
                 selectedDate = date,
                 startTime = "$date 00:00:00",
-                stopTime = "$date 23:59:59"
+                stopTime = "$date 23:59:59",
+                lastLoadedDate = "",
+                lastLoadedCode = ""
             )
         }
+        loadRecordFiles()
         loadPlayback()
     }
 
@@ -87,6 +109,70 @@ class PlaybackViewModel : ViewModel() {
             loadPlayback()
         }
     }
+
+    // ==================== 录像片段列表（萤石风格）====================
+
+    fun loadRecordFiles() {
+        viewModelScope.launch {
+            val state = _uiState.value
+            if (state.deviceSerial.isBlank()) return@launch
+            _uiState.update { it.copy(isListLoading = true, listError = null) }
+            val date = state.selectedDate.ifBlank { LocalDate.now().toString() }
+            val startMs = try {
+                LocalDate.parse(date).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            } catch (e: Exception) {
+                System.currentTimeMillis() - 6 * 60 * 60 * 1000L
+            }
+            val endMs = startMs + 24 * 60 * 60 * 1000 - 1
+
+            when (val result = repo.getRecordFiles(state.deviceSerial, startMs, endMs)) {
+                is NetworkResult.Success -> {
+                    val items = result.data
+                        .filter { it.endTime > it.startTime && it.startTime > 0 }
+                        .sortedBy { it.startTime }
+                        .map {
+                            RecordFileItem(
+                                startTime = it.startTime,
+                                endTime = it.endTime,
+                                timeLabel = timeSdf.format(java.util.Date(it.startTime)),
+                                durationLabel = formatDuration(it.endTime - it.startTime),
+                                localType = it.localType ?: ""
+                            )
+                        }
+                    Log.d(TAG, "录像片段加载成功: ${items.size} 条")
+                    _uiState.update { it.copy(recordFiles = items, isListLoading = false, listError = null) }
+                }
+                is NetworkResult.Error -> {
+                    Log.e(TAG, "录像片段加载失败: ${result.message}")
+                    _uiState.update { it.copy(listError = result.message, isListLoading = false) }
+                }
+            }
+        }
+    }
+
+    /** 点击片段 → 回放该片段时间窗口 */
+    fun onFileSelected(startMs: Long, endMs: Long) {
+        val startStr = fullSdf.format(java.util.Date(startMs))
+        val stopStr = fullSdf.format(java.util.Date(endMs))
+        _uiState.update {
+            it.copy(
+                startTime = startStr,
+                stopTime = stopStr,
+                lastLoadedDate = "",
+                lastLoadedCode = ""
+            )
+        }
+        loadPlayback()
+    }
+
+    private fun formatDuration(durationMs: Long): String {
+        val sec = (durationMs / 1000).coerceAtLeast(1)
+        val m = sec / 60
+        val s = sec % 60
+        return "$m'$s\""
+    }
+
+    // ==================== 回放 ====================
 
     fun loadPlayback() {
         viewModelScope.launch {

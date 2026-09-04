@@ -29,6 +29,11 @@ class Rk3LanClient(private val okHttpClient: OkHttpClient) {
     /**
      * GET {baseUrl}/{path}?query → 响应 data（JsonObject）。
      * data 为 JsonNull/缺失 → 返回 null（业务层转「暂无数据」空态）。
+     *
+     * 业务响应规则：只要 body 是合法 {"code","message","data"} JSON 即视为业务响应——
+     * code=200 → 返回 data（可为 null 表示无数据）；code≠200 → 抛业务 message
+     * （如真 RK3 无建议时 HTTP 404 + "暂无建议数据"，就显示"暂无建议数据"而非"连接失败"）。
+     * 只有网络异常 / body 非业务 JSON 时才抛 MSG_CONNECT_FAILED。
      */
     suspend fun get(baseUrl: String, path: String, query: Map<String, String> = emptyMap()): JsonObject? {
         val normalized = baseUrl.trim().trimEnd('/')
@@ -48,9 +53,26 @@ class Rk3LanClient(private val okHttpClient: OkHttpClient) {
         return withContext(Dispatchers.IO) {
             val request = Request.Builder().url(url).get().build()
             try {
+                var result: JsonObject? = null
                 okHttpClient.newCall(request).execute().use { resp ->
                     val bodyText = resp.body?.string().orEmpty()
                     if (!resp.isSuccessful) {
+                        // 真 RK3 在「暂无数据」时返回 HTTP 404 + {"code":404,"message":"暂无建议数据"}。
+                        // 这是业务性响应而非传输失败：能解析出 code 字段时按业务响应处理，
+                        // code=200 → 返回 data（可为 null 表示无数据）；否则抛业务 message；
+                        // 只有 body 不是业务 JSON 时才算真正的连接失败。
+                        val biz = runCatching { JsonParser.parseString(bodyText).asJsonObject }.getOrNull()
+                        if (biz != null && biz.has("code")) {
+                            val bizCode = runCatching { biz.get("code")?.takeUnless { it.isJsonNull }?.asInt }.getOrNull() ?: -1
+                            val bizMsg = runCatching { biz.get("message")?.takeUnless { it.isJsonNull }?.asString.orEmpty() }.getOrDefault("")
+                            if (bizCode == 200) {
+                                val data = biz.get("data")
+                                result = if (data == null || data.isJsonNull) null else data.asJsonObject
+                                return@use
+                            }
+                            Log.e(TAG, "RK3 业务响应 code=$bizCode message=$bizMsg url=$url")
+                            throw Rk3LanException(bizMsg.ifBlank { MSG_CONNECT_FAILED })
+                        }
                         Log.e(TAG, "HTTP ${resp.code} $url")
                         throw Rk3LanException(MSG_CONNECT_FAILED)
                     }
@@ -72,8 +94,9 @@ class Rk3LanClient(private val okHttpClient: OkHttpClient) {
                         throw Rk3LanException(msg.ifBlank { MSG_CONNECT_FAILED })
                     }
                     val data = json.get("data")
-                    if (data == null || data.isJsonNull) null else data.asJsonObject
+                    result = if (data == null || data.isJsonNull) null else data.asJsonObject
                 }
+                result
             } catch (e: Rk3LanException) {
                 throw e
             } catch (e: SocketTimeoutException) {

@@ -59,7 +59,7 @@ class IncidentRepository(
             incidentNo = genIncidentNo(now),
             alarmId = alarmId,
             elderlyId = profile.userId,
-            elderlyName = profile.name.ifBlank { "老人" },
+            elderlyName = profile.name.ifBlank { "长者" },
             buildingNo = profile.buildingNo,
             unitNo = profile.unitNo,
             roomNo = profile.roomNo,
@@ -82,7 +82,7 @@ class IncidentRepository(
                 todoType = "跌倒告警",
                 todoSubType = SUBTYPE_FALL,
                 title = "跌倒告警 - ${incident.elderlyName}（${profile.buildingNo}栋）",
-                content = "设备监测到老人可能跌倒，请立即联系家属并评估是否紧急出警",
+                content = "设备监测到长者可能跌倒，请立即联系家属并评估是否紧急出警",
                 priority = TodoItem.PRIORITY_HIGH,
                 incidentId = id,
                 createdAt = now

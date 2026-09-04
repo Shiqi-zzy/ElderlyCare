@@ -299,6 +299,46 @@ class EzvizRepository(
         }
     }
 
+    // ==================== 录像文件列表（SD卡本地录像）====================
+
+    suspend fun getRecordFiles(
+        deviceSerial: String,
+        startTimeMs: Long? = null,
+        endTimeMs: Long? = null
+    ): NetworkResult<List<RecordFileDto>> {
+        val token = getOrRefreshToken()
+            ?: return NetworkResult.Error(message = "未登录或 Token 已过期，请重试")
+        return try {
+            val response = api.getRecordFiles(
+                accessToken = token,
+                deviceSerial = deviceSerial,
+                channelNo = 1,
+                startTime = startTimeMs,
+                endTime = endTimeMs,
+                recType = 2
+            )
+            if (!response.isSuccessful) {
+                NetworkResult.Error(message = "HTTP ${response.code()}: ${response.message()}")
+            } else {
+                val body = response.body()
+                if (body?.code == "200") {
+                    NetworkResult.Success(body.data.orEmpty())
+                } else {
+                    NetworkResult.Error(
+                        code = body?.code ?: "-1",
+                        message = body?.msg?.takeIf { it.isNotBlank() } ?: "查询录像失败"
+                    )
+                }
+            }
+        } catch (e: java.net.UnknownHostException) {
+            NetworkResult.Error(message = "网络连接失败，请检查网络", throwable = e)
+        } catch (e: java.net.SocketTimeoutException) {
+            NetworkResult.Error(message = "请求超时，请稍后重试", throwable = e)
+        } catch (e: Exception) {
+            Log.e(TAG, "查询录像文件异常", e)
+            NetworkResult.Error(message = e.message ?: "查询录像失败", throwable = e)
+        }
+    }
     // ==================== 告警消息 ====================
 
     suspend fun getAlarmList(

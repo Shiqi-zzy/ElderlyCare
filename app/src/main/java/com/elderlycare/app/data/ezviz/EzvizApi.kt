@@ -129,4 +129,21 @@ interface EzvizApi {
         @Field("accessToken") accessToken: String,
         @Field("alarmId") alarmId: String
     ): Response<ApiResponse<Any>>
+
+    // ==================== 录像文件列表 ====================
+
+    /**
+     * 录像文件列表（api/lapp/video/by/time）。
+     * recType=2 本地录像(SD卡)；startTime/endTime 为毫秒时间戳，不传默认当天 0 点~当前。
+     */
+    @FormUrlEncoded
+    @POST("api/lapp/video/by/time")
+    suspend fun getRecordFiles(
+        @Field("accessToken") accessToken: String,
+        @Field("deviceSerial") deviceSerial: String,
+        @Field("channelNo") channelNo: Int = 1,
+        @Field("startTime") startTime: Long? = null,
+        @Field("endTime") endTime: Long? = null,
+        @Field("recType") recType: Int = 2
+    ): Response<ApiResponse<List<RecordFileDto>>>
 }

@@ -14,7 +14,7 @@ fun HospitalLoginScreen(
 ) {
     StaffAuthScreen(
         role = UserRole.HOSPITAL,
-        endName = "医院",
+        endName = "医护管理",
         accent = Error,
         onLoginSuccess = onLoginSuccess,
         onBack = onBack
