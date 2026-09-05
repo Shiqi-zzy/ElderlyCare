@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
@@ -16,8 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -100,53 +97,6 @@ fun PlaybackScreen(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // 验证码输入卡片
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = Surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = Primary.copy(alpha = 0.1f),
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Icon(
-                            Icons.Default.Lock,
-                            contentDescription = null,
-                            tint = Primary,
-                            modifier = Modifier.padding(7.dp).fillMaxSize()
-                        )
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    OutlinedTextField(
-                        value = uiState.verifyCode,
-                        onValueChange = viewModel::onVerifyCodeChange,
-                        label = { Text("设备验证码（6位）", fontSize = 14.sp) },
-                        placeholder = { Text("设备标签上的6位大写字母", fontSize = 14.sp, color = TextHint) },
-                        singleLine = true,
-                        textStyle = LocalTextStyle.current.copy(
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium,
-                            letterSpacing = 4.sp,
-                            textAlign = TextAlign.Center,
-                            color = TextPrimary
-                        ),
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Characters,
-                            keyboardType = KeyboardType.Ascii
-                        ),
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                }
-            }
-
             // 播放器区域
             Card(
                 modifier = Modifier.fillMaxWidth(),

@@ -30,6 +30,7 @@ fun FamilyLoginScreen(
 ) {
     val scope = rememberCoroutineScope()
     var isRegister by remember { mutableStateOf(false) }
+    var showRegisterNotice by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -148,11 +149,76 @@ fun FamilyLoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             TextButton(
-                onClick = { isRegister = !isRegister; error = null },
+                onClick = {
+                    if (isRegister) {
+                        // 注册态 → 返回登录态，直接切换
+                        isRegister = false
+                    } else {
+                        // 登录态 → 注册：先弹温馨提示，同意后才进入注册（覆盖使用人本人 / 家属两个入口）
+                        showRegisterNotice = true
+                    }
+                    error = null
+                },
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             ) {
                 Text(if (isRegister) "已有账号？去登录" else "没有账号？去注册", color = Primary)
             }
         }
     }
+
+    // 注册前温馨提示弹窗：同意后才进入注册表单，取消则停留在登录页
+    if (showRegisterNotice) {
+        RegisterWarmNoticeDialog(
+            onAgree = {
+                showRegisterNotice = false
+                isRegister = true
+            },
+            onDismiss = { showRegisterNotice = false }
+        )
+    }
+}
+
+/**
+ * 居家端（使用人本人 / 家属）注册前的温馨提示弹窗。
+ * 点击「同意并注册」后才允许进入注册流程，取消则停留在登录页。
+ */
+@Composable
+private fun RegisterWarmNoticeDialog(
+    onAgree: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val tips = listOf(
+        "本系统为情绪倾向筛查辅助工具，非医疗器械，基于AI算法的筛查结果仅供参考，不构成临床诊断、治疗建议或用药指导。",
+        "如有健康疑虑，请及时前往正规医疗机构，由专业医师进行评估与诊治。",
+        "相关数据均在用户授权下采集并经脱敏处理，仅用于情绪倾向评估。"
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("温馨提示", fontWeight = FontWeight.SemiBold) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                tips.forEachIndexed { index, tip ->
+                    if (index > 0) Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "• $tip",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = TextSecondary,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onAgree) {
+                Text("同意并注册", color = Primary, fontWeight = FontWeight.SemiBold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
 }
